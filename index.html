@@ -60,7 +60,6 @@
   .meta{ display:flex; flex-wrap:wrap; gap:8px; padding:12px 14px; background:var(--panel); border-bottom:1px solid var(--border); }
   #headerInput{ flex:1 1 220px; font-size:16px; font-weight:600; }
   #dateInput{ flex:0 0 150px; }
-  #roomInput, #speakerInput{ flex:1 1 140px; }
 
   .toolbar{ display:flex; align-items:center; gap:10px; padding:8px 14px; background:var(--panel); border-bottom:1px solid var(--border); flex-wrap:wrap; }
   .mode-toggle{ display:flex; gap:4px; background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:2px; }
@@ -73,6 +72,9 @@
   .swatch{ width:28px; height:28px; border-radius:50%; border:2px solid var(--border); cursor:pointer; padding:0; min-height:auto; }
   .swatch.active{ border-color:#fff; }
   #penColorCustom{ width:36px; height:36px; padding:2px; border-radius:8px; }
+  #brushSizeWrap{ display:flex; align-items:center; gap:6px; }
+  #brushSize{ width:100px; min-height:auto; padding:0; }
+  #brushSizeLabel{ font-size:12px; color:var(--muted); width:34px; text-align:right; }
 
   #contentWrap{ flex:1 1 auto; position:relative; min-height:0; }
   #contentType{
@@ -122,8 +124,6 @@
   <div class="meta">
     <input id="headerInput" type="text" placeholder="Untitled — leave blank to auto-generate">
     <input id="dateInput" type="date">
-    <input id="roomInput" type="text" placeholder="Room">
-    <input id="speakerInput" type="text" placeholder="Speaker">
   </div>
   <div class="toolbar">
     <div class="mode-toggle">
@@ -144,6 +144,10 @@
       <button class="swatch" data-color="#5bd68c" style="background:#5bd68c"></button>
       <button class="swatch" data-color="#f2b84b" style="background:#f2b84b"></button>
       <input type="color" id="penColorCustom" value="#ffffff" title="Custom color">
+      <div id="brushSizeWrap">
+        <input type="range" id="brushSize" min="1" max="40" value="4" title="Pen / eraser size">
+        <span id="brushSizeLabel">4px</span>
+      </div>
       <button id="eraserBtn" title="Eraser">🧹 Eraser</button>
       <button id="clearCanvasBtn" title="Clear drawing">🗑️ Clear</button>
     </div>
@@ -179,6 +183,7 @@
   let data = loadData();
   let currentNoteId = null;
   let penColor = "#f2f2f2";
+  let brushSize = 4;
   let erasing = false;
   let drawing = false;
   let lastX = 0, lastY = 0;
@@ -191,8 +196,6 @@
   const breadcrumbEl = el("breadcrumb");
   const headerInput = el("headerInput");
   const dateInput = el("dateInput");
-  const roomInput = el("roomInput");
-  const speakerInput = el("speakerInput");
   const contentType = el("contentType");
   const contentDraw = el("contentDraw");
   const outlinePanel = el("outlinePanel");
@@ -210,8 +213,6 @@
       header: "",
       originLabel: opts.originLabel || "",
       date: todayStr(),
-      room: "",
-      speaker: "",
       mode: "type",
       html: "",
       drawing: "",
@@ -268,7 +269,7 @@
         h3.textContent = deriveHeader(note);
         const sub = document.createElement("div");
         sub.className = "sub";
-        sub.textContent = [note.date, note.room, note.speaker].filter(Boolean).join(" · ") || "No details";
+        sub.textContent = note.date || "No details";
         const del = document.createElement("button");
         del.className = "del";
         del.textContent = "🗑";
@@ -322,8 +323,6 @@
     headerInput.value = note.header || "";
     headerInput.placeholder = "Untitled — leave blank to auto-generate (" + deriveHeader(note) + ")";
     dateInput.value = note.date || todayStr();
-    roomInput.value = note.room || "";
-    speakerInput.value = note.speaker || "";
 
     contentType.innerHTML = note.html || "";
     setMode(note.mode || "type", true);
@@ -337,8 +336,6 @@
     if(!note) return;
     note.header = headerInput.value;
     note.date = dateInput.value;
-    note.room = roomInput.value;
-    note.speaker = speakerInput.value;
     note.html = contentType.innerHTML;
     if(note.mode === "draw"){
       note.drawing = contentDraw.width ? contentDraw.toDataURL() : note.drawing;
@@ -346,7 +343,7 @@
     saveData();
   }
 
-  [headerInput, dateInput, roomInput, speakerInput].forEach(input=>{
+  [headerInput, dateInput].forEach(input=>{
     input.addEventListener("change", saveCurrentContent);
   });
   contentType.addEventListener("input", ()=>{ saveCurrentContent(); });
@@ -499,7 +496,7 @@
     const p = getPos(e);
     ctx.globalCompositeOperation = erasing ? "destination-out" : "source-over";
     ctx.strokeStyle = penColor;
-    ctx.lineWidth = erasing ? 18 : 3;
+    ctx.lineWidth = brushSize;
     ctx.beginPath();
     ctx.moveTo(lastX, lastY);
     ctx.lineTo(p.x, p.y);
@@ -533,6 +530,10 @@
   el("eraserBtn").addEventListener("click", ()=>{
     erasing = !erasing;
     el("eraserBtn").classList.toggle("active", erasing);
+  });
+  el("brushSize").addEventListener("input", (e)=>{
+    brushSize = Number(e.target.value);
+    el("brushSizeLabel").textContent = brushSize + "px";
   });
   el("clearCanvasBtn").addEventListener("click", ()=>{
     if(!confirm("Clear the whole drawing?")) return;
