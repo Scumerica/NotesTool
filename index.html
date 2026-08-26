@@ -584,6 +584,19 @@
     panLastX = e.clientX; panLastY = e.clientY;
   }
 
+  // Belt-and-suspenders for iOS Safari: touch-action:none plus preventDefault()
+  // on the Pointer Events isn't always enough to stop Safari's native scroll
+  // gesture recognizer, especially with Apple Pencil. Blocking at the raw
+  // TouchEvent level with an explicitly non-passive listener is the more
+  // forceful, reliable way to kill it — pointer events above still do the
+  // actual drawing/panning logic, this just stops the browser's own gesture.
+  contentDraw.addEventListener("touchstart", (e)=>{
+    if(activeTool !== "text") e.preventDefault();
+  }, {passive:false});
+  contentDraw.addEventListener("touchmove", (e)=>{
+    if(activeTool !== "text") e.preventDefault();
+  }, {passive:false});
+
   contentDraw.addEventListener("pointerdown", (e)=>{
     if(activeTool === "text") return;
     if(e.pointerType === "touch"){ beginPan(e); return; } // a finger pans; pen or mouse draws
