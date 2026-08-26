@@ -81,7 +81,7 @@
     position:relative; min-height:100%; padding:18px 20px; outline:none; box-sizing:border-box;
     font-size:16px; line-height:1.6; -webkit-user-select:text;
   }
-  #contentDraw{ position:absolute; top:0; left:0; touch-action:pan-y; background:transparent; }
+  #contentDraw{ position:absolute; top:0; left:0; touch-action:none; background:transparent; }
   .notation{
     background:rgba(255,216,115,.18); border-bottom:2px solid var(--notation); cursor:pointer; border-radius:2px;
   }
@@ -207,6 +207,9 @@
   let eraserSize = 20;
   let drawing = false;
   let lastX = 0, lastY = 0;
+  let strokePoints = [];       // accumulated points for the current highlighter stroke
+  let preStrokeSnapshot = null; // canvas pixels before the current highlighter stroke began
+  let panPointerId = null, panLastX = 0, panLastY = 0; // manual one-finger scroll
 
   const el = (id)=>document.getElementById(id);
   const libraryEl = el("library");
@@ -509,12 +512,25 @@
     ctx.lineCap = "round";
   }
 
+  // Draws a preserved snapshot back onto the canvas at its true 1:1
+  // device-pixel size, anchored top-left — never stretched to the new
+  // canvas size. Snapshots are captured via toDataURL()/stored `drawing`,
+  // whose natural pixel dimensions are already device pixels (dpr baked
+  // in), so this must run with the transform reset to identity or the
+  // active dpr transform would scale it a second time.
+  function drawPreservedSnapshot(img){
+    ctx.save();
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.drawImage(img, 0, 0);
+    ctx.restore();
+  }
+
   function loadCanvasForNote(note){
     const {w, h} = canvasTargetSize();
     applyCanvasSize(w, h);
     if(note.drawing){
       const img = new Image();
-      img.onload = ()=>{ ctx.drawImage(img, 0, 0, w, h); };
+      img.onload = ()=>{ drawPreservedSnapshot(img); };
       img.src = note.drawing;
     }
   }
@@ -526,7 +542,7 @@
     applyCanvasSize(w, h);
     if(prevDataURL){
       const img = new Image();
-      img.onload = ()=>{ ctx.drawImage(img, 0, 0, w, h); };
+      img.onload = ()=>{ drawPreservedSnapshot(img); };
       img.src = prevDataURL;
     }
   }
@@ -537,31 +553,87 @@
     return { color:penColor, size:penSize, alpha:1, composite:"source-over" };
   }
 
+  // Raw (device-pixel) bounding box of the accumulated stroke so far, padded
+  // for line width — used to scope the highlighter's per-frame canvas restore
+  // to just the area it's touched instead of the whole (possibly huge) note.
+  function strokeBoundingRectRaw(points, lineWidthCss){
+    const dpr = window.devicePixelRatio || 1;
+    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+    points.forEach(p=>{
+      if(p.x<minX) minX=p.x; if(p.x>maxX) maxX=p.x;
+      if(p.y<minY) minY=p.y; if(p.y>maxY) maxY=p.y;
+    });
+    const pad = lineWidthCss/2 + 4;
+    const x = Math.max(0, Math.floor((minX-pad)*dpr));
+    const y = Math.max(0, Math.floor((minY-pad)*dpr));
+    const xMax = Math.min(contentDraw.width, Math.ceil((maxX+pad)*dpr));
+    const yMax = Math.min(contentDraw.height, Math.ceil((maxY+pad)*dpr));
+    return { x, y, w: Math.max(1, xMax-x), h: Math.max(1, yMax-y) };
+  }
+
+  function beginPan(e){
+    e.preventDefault();
+    panPointerId = e.pointerId;
+    panLastX = e.clientX; panLastY = e.clientY;
+    try{ contentDraw.setPointerCapture(e.pointerId); }catch(err){}
+  }
+  function continuePan(e){
+    const wrap = el("contentWrap");
+    wrap.scrollTop += (panLastY - e.clientY);
+    wrap.scrollLeft += (panLastX - e.clientX);
+    panLastX = e.clientX; panLastY = e.clientY;
+  }
+
   contentDraw.addEventListener("pointerdown", (e)=>{
     if(activeTool === "text") return;
-    if(e.pointerType === "touch") return; // let a finger pan/scroll; pen or mouse draws
+    if(e.pointerType === "touch"){ beginPan(e); return; } // a finger pans; pen or mouse draws
     e.preventDefault();
     drawing = true;
     lastX = e.offsetX; lastY = e.offsetY;
+    if(activeTool === "highlighter"){
+      strokePoints = [{x:lastX, y:lastY}];
+      preStrokeSnapshot = ctx.getImageData(0, 0, contentDraw.width, contentDraw.height);
+    }
     try{ contentDraw.setPointerCapture(e.pointerId); }catch(err){}
   });
   contentDraw.addEventListener("pointermove", (e)=>{
+    if(panPointerId === e.pointerId){ continuePan(e); return; }
     if(!drawing) return;
     const style = currentStrokeStyle();
-    ctx.globalCompositeOperation = style.composite;
-    ctx.globalAlpha = style.alpha;
-    ctx.strokeStyle = style.color;
-    ctx.lineWidth = style.size;
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(e.offsetX, e.offsetY);
-    ctx.stroke();
+    if(activeTool === "highlighter"){
+      // Redraw the whole accumulated path in one stroke() call each frame so
+      // overlapping segments don't re-blend into darker "beads" — a single
+      // stroke() paints its path as one shape, however much it self-overlaps.
+      strokePoints.push({x:e.offsetX, y:e.offsetY});
+      const rect = strokeBoundingRectRaw(strokePoints, style.size);
+      ctx.putImageData(preStrokeSnapshot, 0, 0, rect.x, rect.y, rect.w, rect.h);
+      ctx.globalCompositeOperation = style.composite;
+      ctx.globalAlpha = style.alpha;
+      ctx.strokeStyle = style.color;
+      ctx.lineWidth = style.size;
+      ctx.beginPath();
+      ctx.moveTo(strokePoints[0].x, strokePoints[0].y);
+      for(let i=1;i<strokePoints.length;i++) ctx.lineTo(strokePoints[i].x, strokePoints[i].y);
+      ctx.stroke();
+    } else {
+      ctx.globalCompositeOperation = style.composite;
+      ctx.globalAlpha = style.alpha;
+      ctx.strokeStyle = style.color;
+      ctx.lineWidth = style.size;
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(e.offsetX, e.offsetY);
+      ctx.stroke();
+    }
     lastX = e.offsetX; lastY = e.offsetY;
   });
-  function endStroke(){
+  function endStroke(e){
+    if(panPointerId === (e && e.pointerId)){ panPointerId = null; return; }
     if(!drawing) return;
     drawing = false;
     ctx.globalAlpha = 1;
+    strokePoints = [];
+    preStrokeSnapshot = null;
     saveCurrentContent();
   }
   contentDraw.addEventListener("pointerup", endStroke);
