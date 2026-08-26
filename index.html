@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Nested Notes</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a;
+    --text:#e8eaed; --muted:#9aa2b1; --accent:#5b8cff; --accent2:#3d6ae0;
+    --notation:#ffd873; --highlight:#fff59d;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  button{
+    font:inherit; cursor:pointer; border:1px solid var(--border); background:var(--panel2);
+    color:var(--text); border-radius:8px; padding:8px 12px; min-height:40px;
+  }
+  button:hover{ border-color:var(--accent); }
+  button.active{ background:var(--accent2); border-color:var(--accent); color:#fff; }
+  input[type=text], input[type=date], input{
+    font:inherit; background:var(--panel2); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:8px 10px; min-height:40px;
+  }
+  #topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--border);
+    flex:0 0 auto; flex-wrap:wrap;
+  }
+  #breadcrumb{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:14px; color:var(--muted); min-width:0; }
+  #breadcrumb button{ padding:6px 10px; min-height:32px; font-size:14px; background:transparent; border:none; color:var(--muted); }
+  #breadcrumb button:hover{ color:var(--accent); text-decoration:underline; }
+  #breadcrumb .sep{ opacity:.5; }
+  #breadcrumb .current{ color:var(--text); font-weight:600; }
+  #actions{ display:flex; gap:8px; }
+
+  main{ flex:1 1 auto; min-height:0; overflow:auto; }
+
+  #library{ padding:20px; max-width:900px; margin:0 auto; width:100%; }
+  #library h1{ font-size:20px; margin:0 0 16px; }
+  #rootGrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+  .root-card{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px;
+    cursor:pointer; position:relative; transition:border-color .15s;
+  }
+  .root-card:hover{ border-color:var(--accent); }
+  .root-card h3{ margin:0 0 6px; font-size:16px; }
+  .root-card .sub{ font-size:12px; color:var(--muted); }
+  .root-card .del{ position:absolute; top:8px; right:8px; padding:4px 8px; min-height:auto; font-size:12px; opacity:.6; }
+  .root-card .del:hover{ opacity:1; border-color:#e05b5b; color:#e05b5b; }
+  #newRootBtn{ margin-top:16px; }
+  #emptyState{ color:var(--muted); padding:40px 0; text-align:center; }
+
+  #noteView{ display:flex; flex-direction:column; height:100%; }
+  .meta{ display:flex; flex-wrap:wrap; gap:8px; padding:12px 14px; background:var(--panel); border-bottom:1px solid var(--border); }
+  #headerInput{ flex:1 1 220px; font-size:16px; font-weight:600; }
+  #dateInput{ flex:0 0 150px; }
+  #roomInput, #speakerInput{ flex:1 1 140px; }
+
+  .toolbar{ display:flex; align-items:center; gap:10px; padding:8px 14px; background:var(--panel); border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .mode-toggle{ display:flex; gap:4px; background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:2px; }
+  .mode-toggle button{ border:none; background:transparent; padding:6px 12px; min-height:32px; }
+  .mode-toggle button.active{ background:var(--accent2); color:#fff; border-radius:6px; }
+  #typeTools, #drawTools{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  #typeTools button, #drawTools button{ padding:6px 10px; min-height:36px; }
+  #typeTools button[data-cmd]{ font-weight:700; width:36px; padding:0; }
+  #nestBtn{ background:var(--accent2); border-color:var(--accent); color:#fff; }
+  .swatch{ width:28px; height:28px; border-radius:50%; border:2px solid var(--border); cursor:pointer; padding:0; min-height:auto; }
+  .swatch.active{ border-color:#fff; }
+  #penColorCustom{ width:36px; height:36px; padding:2px; border-radius:8px; }
+
+  #contentWrap{ flex:1 1 auto; position:relative; min-height:0; }
+  #contentType{
+    position:absolute; inset:0; overflow:auto; padding:18px 20px; outline:none;
+    font-size:16px; line-height:1.6; -webkit-user-select:text;
+  }
+  #contentDraw{ position:absolute; inset:0; width:100%; height:100%; touch-action:none; background:transparent; }
+  .notation{
+    background:rgba(255,216,115,.18); border-bottom:2px solid var(--notation); cursor:pointer; border-radius:2px;
+  }
+  .notation:hover{ background:rgba(255,216,115,.32); }
+
+  #outlinePanel{
+    position:fixed; top:0; right:0; bottom:0; width:320px; max-width:85vw; background:var(--panel);
+    border-left:1px solid var(--border); box-shadow:-8px 0 24px rgba(0,0,0,.4); z-index:20;
+    display:flex; flex-direction:column; transform:translateX(0);
+  }
+  #outlinePanel[hidden]{ display:none; }
+  #outlinePanel header{ display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid var(--border); }
+  #outlinePanel header h2{ font-size:15px; margin:0; }
+  #outlineList{ overflow:auto; padding:10px 8px; flex:1; }
+  .outline-item{ padding:7px 10px; border-radius:6px; cursor:pointer; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .outline-item:hover{ background:var(--panel2); }
+  .outline-item.current{ background:var(--accent2); color:#fff; }
+
+  [hidden]{ display:none !important; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div id="breadcrumb"></div>
+  <div id="actions">
+    <button id="outlineBtn" title="Show outline">📑 Outline</button>
+    <button id="homeBtn" title="Back to home">🏠 Home</button>
+  </div>
+</div>
+
+<main id="library">
+  <h1>Your Notes</h1>
+  <div id="rootGrid"></div>
+  <div id="emptyState" hidden>No notes yet — create your first one.</div>
+  <button id="newRootBtn">+ New Note</button>
+</main>
+
+<main id="noteView" hidden>
+  <div class="meta">
+    <input id="headerInput" type="text" placeholder="Untitled — leave blank to auto-generate">
+    <input id="dateInput" type="date">
+    <input id="roomInput" type="text" placeholder="Room">
+    <input id="speakerInput" type="text" placeholder="Speaker">
+  </div>
+  <div class="toolbar">
+    <div class="mode-toggle">
+      <button data-mode="type" class="active">✏️ Type</button>
+      <button data-mode="draw">🖊️ Pen</button>
+    </div>
+    <div id="typeTools">
+      <button data-cmd="bold"><b>B</b></button>
+      <button data-cmd="italic"><i>I</i></button>
+      <button data-cmd="underline"><u>U</u></button>
+      <button id="highlightBtn" title="Highlight selection">🖍️</button>
+      <button id="nestBtn" title="Attach a nested note to the selected text">🔗 Nest selection</button>
+    </div>
+    <div id="drawTools" hidden>
+      <button class="swatch active" data-color="#f2f2f2" style="background:#f2f2f2"></button>
+      <button class="swatch" data-color="#e05b5b" style="background:#e05b5b"></button>
+      <button class="swatch" data-color="#5b8cff" style="background:#5b8cff"></button>
+      <button class="swatch" data-color="#5bd68c" style="background:#5bd68c"></button>
+      <button class="swatch" data-color="#f2b84b" style="background:#f2b84b"></button>
+      <input type="color" id="penColorCustom" value="#ffffff" title="Custom color">
+      <button id="eraserBtn" title="Eraser">🧹 Eraser</button>
+      <button id="clearCanvasBtn" title="Clear drawing">🗑️ Clear</button>
+    </div>
+  </div>
+  <div id="contentWrap">
+    <div id="contentType" contenteditable="true" spellcheck="true"></div>
+    <canvas id="contentDraw" hidden></canvas>
+  </div>
+</main>
+
+<aside id="outlinePanel" hidden>
+  <header>
+    <h2>Outline</h2>
+    <button id="closeOutlineBtn">✕</button>
+  </header>
+  <div id="outlineList"></div>
+</aside>
+
+<script>
+(function(){
+  "use strict";
+  const STORAGE_KEY = "nestedNotesData.v1";
+
+  function loadData(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return { notes:{}, roots:[] };
+  }
+  function saveData(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+  let data = loadData();
+  let currentNoteId = null;
+  let penColor = "#f2f2f2";
+  let erasing = false;
+  let drawing = false;
+  let lastX = 0, lastY = 0;
+
+  const el = (id)=>document.getElementById(id);
+  const libraryEl = el("library");
+  const noteViewEl = el("noteView");
+  const rootGridEl = el("rootGrid");
+  const emptyStateEl = el("emptyState");
+  const breadcrumbEl = el("breadcrumb");
+  const headerInput = el("headerInput");
+  const dateInput = el("dateInput");
+  const roomInput = el("roomInput");
+  const speakerInput = el("speakerInput");
+  const contentType = el("contentType");
+  const contentDraw = el("contentDraw");
+  const outlinePanel = el("outlinePanel");
+  const outlineList = el("outlineList");
+  const ctx = contentDraw.getContext("2d");
+
+  function uid(){ return Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+  function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+  function createNote(opts){
+    opts = opts || {};
+    const note = {
+      id: uid(),
+      parentId: opts.parentId || null,
+      header: "",
+      originLabel: opts.originLabel || "",
+      date: todayStr(),
+      room: "",
+      speaker: "",
+      mode: "type",
+      html: "",
+      drawing: "",
+      children: [],
+      createdAt: Date.now()
+    };
+    data.notes[note.id] = note;
+    if(note.parentId){
+      data.notes[note.parentId].children.push(note.id);
+    } else {
+      data.roots.push(note.id);
+    }
+    saveData();
+    return note;
+  }
+
+  function deriveHeader(note){
+    if(note.header && note.header.trim()) return note.header.trim();
+    if(note.originLabel && note.originLabel.trim()){
+      let s = note.originLabel.trim();
+      return s.length > 42 ? s.slice(0,42) + "…" : s;
+    }
+    const tmp = document.createElement("div");
+    tmp.innerHTML = note.html || "";
+    const text = (tmp.textContent || "").trim();
+    if(text) return text.length > 42 ? text.slice(0,42) + "…" : text;
+    return "Untitled Note";
+  }
+
+  // ---------- Library ----------
+  function renderLibrary(){
+    outlinePanel.hidden = true;
+    noteViewEl.hidden = true;
+    libraryEl.hidden = false;
+    breadcrumbEl.innerHTML = "";
+    const homeBtn = document.createElement("span");
+    homeBtn.className = "current";
+    homeBtn.textContent = "🏠 Home";
+    breadcrumbEl.appendChild(homeBtn);
+
+    rootGridEl.innerHTML = "";
+    if(data.roots.length === 0){
+      emptyStateEl.hidden = false;
+    } else {
+      emptyStateEl.hidden = true;
+      data.roots.forEach(id=>{
+        const note = data.notes[id];
+        if(!note) return;
+        const card = document.createElement("div");
+        card.className = "root-card";
+        card.setAttribute("role", "button");
+        card.setAttribute("tabindex", "0");
+        const h3 = document.createElement("h3");
+        h3.textContent = deriveHeader(note);
+        const sub = document.createElement("div");
+        sub.className = "sub";
+        sub.textContent = [note.date, note.room, note.speaker].filter(Boolean).join(" · ") || "No details";
+        const del = document.createElement("button");
+        del.className = "del";
+        del.textContent = "🗑";
+        del.title = "Delete note and its nested notes";
+        del.addEventListener("click", (e)=>{
+          e.stopPropagation();
+          if(confirm('Delete "' + deriveHeader(note) + '" and everything nested inside it?')){
+            deleteNoteTree(id);
+            data.roots = data.roots.filter(r=>r!==id);
+            saveData();
+            renderLibrary();
+          }
+        });
+        card.appendChild(h3);
+        card.appendChild(sub);
+        card.appendChild(del);
+        card.addEventListener("click", ()=>openNote(id));
+        card.addEventListener("keydown", (e)=>{
+          if(e.key === "Enter" || e.key === " "){ e.preventDefault(); openNote(id); }
+        });
+        rootGridEl.appendChild(card);
+      });
+    }
+  }
+
+  function deleteNoteTree(id){
+    const note = data.notes[id];
+    if(!note) return;
+    (note.children||[]).forEach(childId=>deleteNoteTree(childId));
+    delete data.notes[id];
+  }
+
+  el("newRootBtn").addEventListener("click", ()=>{
+    const note = createNote({});
+    openNote(note.id);
+  });
+  el("homeBtn").addEventListener("click", ()=>{
+    if(currentNoteId) saveCurrentContent();
+    renderLibrary();
+  });
+
+  // ---------- Note view ----------
+  function openNote(id){
+    if(currentNoteId) saveCurrentContent();
+    currentNoteId = id;
+    const note = data.notes[id];
+    if(!note) return;
+    libraryEl.hidden = true;
+    noteViewEl.hidden = false;
+
+    headerInput.value = note.header || "";
+    headerInput.placeholder = "Untitled — leave blank to auto-generate (" + deriveHeader(note) + ")";
+    dateInput.value = note.date || todayStr();
+    roomInput.value = note.room || "";
+    speakerInput.value = note.speaker || "";
+
+    contentType.innerHTML = note.html || "";
+    setMode(note.mode || "type", true);
+
+    renderBreadcrumb(id);
+  }
+
+  function saveCurrentContent(){
+    if(!currentNoteId) return;
+    const note = data.notes[currentNoteId];
+    if(!note) return;
+    note.header = headerInput.value;
+    note.date = dateInput.value;
+    note.room = roomInput.value;
+    note.speaker = speakerInput.value;
+    note.html = contentType.innerHTML;
+    if(note.mode === "draw"){
+      note.drawing = contentDraw.width ? contentDraw.toDataURL() : note.drawing;
+    }
+    saveData();
+  }
+
+  [headerInput, dateInput, roomInput, speakerInput].forEach(input=>{
+    input.addEventListener("change", saveCurrentContent);
+  });
+  contentType.addEventListener("input", ()=>{ saveCurrentContent(); });
+
+  function renderBreadcrumb(id){
+    const chain = [];
+    let n = data.notes[id];
+    while(n){
+      chain.unshift(n);
+      n = n.parentId ? data.notes[n.parentId] : null;
+    }
+    breadcrumbEl.innerHTML = "";
+    const home = document.createElement("button");
+    home.textContent = "🏠 Home";
+    home.addEventListener("click", ()=>{ saveCurrentContent(); renderLibrary(); });
+    breadcrumbEl.appendChild(home);
+
+    chain.forEach((note, i)=>{
+      const sep = document.createElement("span");
+      sep.className = "sep";
+      sep.textContent = "›";
+      breadcrumbEl.appendChild(sep);
+
+      if(i === chain.length - 1){
+        const cur = document.createElement("span");
+        cur.className = "current";
+        cur.textContent = deriveHeader(note);
+        breadcrumbEl.appendChild(cur);
+      } else {
+        const btn = document.createElement("button");
+        btn.textContent = deriveHeader(note);
+        btn.addEventListener("click", ()=>openNote(note.id));
+        breadcrumbEl.appendChild(btn);
+      }
+    });
+  }
+
+  // ---------- Mode: type vs draw ----------
+  function setMode(mode, isInitialLoad){
+    const note = data.notes[currentNoteId];
+    if(!isInitialLoad) saveCurrentContent();
+    note.mode = mode;
+    document.querySelectorAll(".mode-toggle button").forEach(b=>{
+      b.classList.toggle("active", b.dataset.mode === mode);
+    });
+    el("typeTools").hidden = mode !== "type";
+    el("drawTools").hidden = mode !== "draw";
+    contentType.hidden = mode !== "type";
+    contentDraw.hidden = mode !== "draw";
+    if(mode === "draw"){
+      setupCanvas(note);
+    }
+    saveData();
+  }
+
+  document.querySelectorAll(".mode-toggle button").forEach(btn=>{
+    btn.addEventListener("click", ()=>setMode(btn.dataset.mode));
+  });
+
+  // ---------- Type tools ----------
+  document.querySelectorAll("#typeTools button[data-cmd]").forEach(btn=>{
+    btn.addEventListener("mousedown", (e)=>e.preventDefault());
+    btn.addEventListener("click", ()=>{
+      document.execCommand(btn.dataset.cmd, false, null);
+      contentType.focus();
+      saveCurrentContent();
+    });
+  });
+  el("highlightBtn").addEventListener("mousedown", (e)=>e.preventDefault());
+  el("highlightBtn").addEventListener("click", ()=>{
+    document.execCommand("hiliteColor", false, "#fff59d");
+    contentType.focus();
+    saveCurrentContent();
+  });
+
+  el("nestBtn").addEventListener("click", ()=>{
+    const sel = window.getSelection();
+    if(!sel.rangeCount || sel.isCollapsed){
+      alert("Select some text first, then click \"Nest selection\" to attach a nested note to it.");
+      return;
+    }
+    const range = sel.getRangeAt(0);
+    if(!contentType.contains(range.commonAncestorContainer)){
+      alert("Select text inside the note first.");
+      return;
+    }
+    const label = range.toString();
+    const child = createNote({ parentId: currentNoteId, originLabel: label });
+    data.notes[currentNoteId].children.push.length; // no-op guard
+    const span = document.createElement("span");
+    span.className = "notation";
+    span.dataset.childId = child.id;
+    span.title = "Open nested note";
+    try{
+      range.surroundContents(span);
+    }catch(e){
+      const frag = range.extractContents();
+      span.appendChild(frag);
+      range.insertNode(span);
+    }
+    sel.removeAllRanges();
+    saveCurrentContent();
+    openNote(child.id);
+  });
+
+  contentType.addEventListener("mousedown", (e)=>{
+    const span = e.target.closest(".notation");
+    if(span) e.preventDefault();
+  });
+  contentType.addEventListener("click", (e)=>{
+    const span = e.target.closest(".notation");
+    if(span){
+      saveCurrentContent();
+      openNote(span.dataset.childId);
+    }
+  });
+
+  // ---------- Draw tools ----------
+  function setupCanvas(note){
+    const wrap = el("contentWrap");
+    const dpr = window.devicePixelRatio || 1;
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    contentDraw.style.width = w + "px";
+    contentDraw.style.height = h + "px";
+    contentDraw.width = Math.round(w * dpr);
+    contentDraw.height = Math.round(h * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    if(note.drawing){
+      const img = new Image();
+      img.onload = ()=>{ ctx.drawImage(img, 0, 0, w, h); };
+      img.src = note.drawing;
+    }
+  }
+
+  function getPos(e){
+    const rect = contentDraw.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  contentDraw.addEventListener("pointerdown", (e)=>{
+    drawing = true;
+    contentDraw.setPointerCapture(e.pointerId);
+    const p = getPos(e);
+    lastX = p.x; lastY = p.y;
+  });
+  contentDraw.addEventListener("pointermove", (e)=>{
+    if(!drawing) return;
+    const p = getPos(e);
+    ctx.globalCompositeOperation = erasing ? "destination-out" : "source-over";
+    ctx.strokeStyle = penColor;
+    ctx.lineWidth = erasing ? 18 : 3;
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    lastX = p.x; lastY = p.y;
+  });
+  function endStroke(){
+    if(!drawing) return;
+    drawing = false;
+    saveCurrentContent();
+  }
+  contentDraw.addEventListener("pointerup", endStroke);
+  contentDraw.addEventListener("pointerleave", endStroke);
+  contentDraw.addEventListener("pointercancel", endStroke);
+
+  document.querySelectorAll(".swatch").forEach(sw=>{
+    sw.addEventListener("click", ()=>{
+      penColor = sw.dataset.color;
+      erasing = false;
+      document.querySelectorAll(".swatch").forEach(s=>s.classList.remove("active"));
+      sw.classList.add("active");
+      el("eraserBtn").classList.remove("active");
+    });
+  });
+  el("penColorCustom").addEventListener("input", (e)=>{
+    penColor = e.target.value;
+    erasing = false;
+    document.querySelectorAll(".swatch").forEach(s=>s.classList.remove("active"));
+    el("eraserBtn").classList.remove("active");
+  });
+  el("eraserBtn").addEventListener("click", ()=>{
+    erasing = !erasing;
+    el("eraserBtn").classList.toggle("active", erasing);
+  });
+  el("clearCanvasBtn").addEventListener("click", ()=>{
+    if(!confirm("Clear the whole drawing?")) return;
+    ctx.clearRect(0,0,contentDraw.width, contentDraw.height);
+    saveCurrentContent();
+  });
+
+  window.addEventListener("resize", ()=>{
+    if(currentNoteId && data.notes[currentNoteId] && data.notes[currentNoteId].mode === "draw"){
+      saveCurrentContent();
+      setupCanvas(data.notes[currentNoteId]);
+    }
+  });
+
+  // ---------- Outline ----------
+  el("outlineBtn").addEventListener("click", ()=>{
+    if(!currentNoteId){
+      alert("Open a note first to see its outline.");
+      return;
+    }
+    renderOutline();
+    outlinePanel.hidden = false;
+  });
+  el("closeOutlineBtn").addEventListener("click", ()=>{ outlinePanel.hidden = true; });
+
+  function renderOutline(){
+    let n = data.notes[currentNoteId];
+    let root = n;
+    while(root && root.parentId){ root = data.notes[root.parentId]; }
+    outlineList.innerHTML = "";
+    if(!root) return;
+    (function walk(note, depth){
+      const item = document.createElement("div");
+      item.className = "outline-item" + (note.id === currentNoteId ? " current" : "");
+      item.style.paddingLeft = (10 + depth*16) + "px";
+      item.textContent = (depth>0 ? "↳ " : "") + deriveHeader(note);
+      item.setAttribute("role", "button");
+      item.setAttribute("tabindex", "0");
+      item.addEventListener("click", ()=>{
+        openNote(note.id);
+        renderOutline();
+      });
+      item.addEventListener("keydown", (e)=>{
+        if(e.key === "Enter" || e.key === " "){ e.preventDefault(); openNote(note.id); renderOutline(); }
+      });
+      outlineList.appendChild(item);
+      (note.children||[]).forEach(cid=>{
+        const child = data.notes[cid];
+        if(child) walk(child, depth+1);
+      });
+    })(root, 0);
+  }
+
+  // ---------- Init ----------
+  renderLibrary();
+})();
+</script>
+</body>
+</html>
