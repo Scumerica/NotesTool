@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Nested Notes</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#171a21">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Notes">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
 <style>
   :root{
     --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a;
@@ -100,6 +107,134 @@
   .outline-item:hover{ background:var(--panel2); }
   .outline-item.current{ background:var(--accent2); color:#fff; }
 
+  /* Settings dropdown */
+  #settingsWrap{ position:relative; }
+  #settingsPanel{
+    position:absolute; top:calc(100% + 8px); right:0; width:320px; max-width:88vw;
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    box-shadow:0 12px 32px rgba(0,0,0,.5); z-index:30; padding:6px;
+  }
+  .settings-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 8px; }
+  .settings-row + .settings-row{ border-top:1px solid var(--border); }
+  .settings-row-text{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .settings-row-text strong{ font-size:13px; }
+  .settings-row-text span{ font-size:11.5px; color:var(--muted); line-height:1.4; }
+  .btn-sm{ padding:6px 10px; min-height:32px; font-size:12.5px; white-space:nowrap; }
+
+  .toggle-switch{
+    position:relative; width:44px; height:26px; padding:0; min-height:auto; border-radius:14px;
+    border:1px solid var(--border); background:var(--panel2); flex:0 0 auto;
+  }
+  .toggle-switch .toggle-knob{
+    position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%;
+    background:var(--muted); transition:left .15s, background .15s;
+  }
+  .toggle-switch.on{ background:var(--accent2); border-color:var(--accent); }
+  .toggle-switch.on .toggle-knob{ left:20px; background:#fff; }
+
+  /* Generic modal (ghost picker, add-to-home-screen guide) */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:100;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-overlay[hidden]{ display:none; }
+  .modal-box{
+    background:var(--panel); border:1px solid var(--border); border-radius:14px;
+    width:480px; max-width:100%; max-height:88vh; overflow:auto;
+    padding:16px; display:flex; flex-direction:column; gap:12px;
+  }
+  .modal-header{ display:flex; align-items:center; justify-content:space-between; }
+  .modal-header span{ font-size:16px; font-weight:600; }
+  .modal-header button{ padding:6px 10px; min-height:32px; }
+  .modal-sub{ font-size:12.5px; color:var(--muted); }
+
+  /* Ghost companion */
+  @keyframes ghost-bob{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-6px); } }
+  .ghost-float{
+    position:fixed; right:14px; bottom:14px; width:48px; height:48px; z-index:15000;
+    display:none; cursor:grab; opacity:.88; touch-action:none;
+    transform:var(--ghost-anchor, none); transition:opacity .15s, transform .15s;
+  }
+  .ghost-float.visible{ display:block; }
+  .ghost-float.dragging{ cursor:grabbing; opacity:1; transition:none; }
+  .ghost-float.dragging img{ animation-play-state:paused; }
+  .ghost-float img{
+    width:100%; height:100%; object-fit:contain;
+    filter:drop-shadow(0 2px 5px rgba(0,0,0,.5)); animation:ghost-bob 3.2s ease-in-out infinite;
+    pointer-events:none;
+  }
+  .ghost-float:hover{ opacity:1; transform:var(--ghost-anchor, none) scale(1.08); }
+  .ghost-float.dragging:hover{ transform:none; }
+  .ghost-float[data-pos="top-left"]      { top:14px; left:14px; right:auto; bottom:auto; }
+  .ghost-float[data-pos="top-center"]    { top:14px; left:50%; right:auto; bottom:auto; --ghost-anchor:translateX(-50%); }
+  .ghost-float[data-pos="top-right"]     { top:14px; right:14px; left:auto; bottom:auto; }
+  .ghost-float[data-pos="middle-left"]   { top:50%; left:14px; right:auto; bottom:auto; --ghost-anchor:translateY(-50%); }
+  .ghost-float[data-pos="middle-right"]  { top:50%; right:14px; left:auto; bottom:auto; --ghost-anchor:translateY(-50%); }
+  .ghost-float[data-pos="bottom-left"]   { bottom:14px; left:14px; right:auto; top:auto; }
+  .ghost-float[data-pos="bottom-center"] { bottom:14px; left:50%; right:auto; top:auto; --ghost-anchor:translateX(-50%); }
+  .ghost-float[data-pos="bottom-right"]  { bottom:14px; right:14px; left:auto; top:auto; }
+  .ghost-float[data-pos="custom"]        { --ghost-anchor:none; }
+
+  .ghost-bubble{
+    position:absolute; bottom:calc(100% + 10px); left:0; max-width:190px;
+    background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    font-size:12px; line-height:1.35; padding:8px 10px; border-radius:8px;
+    box-shadow:0 10px 20px -5px rgba(0,0,0,.6); opacity:0; transform:translateY(4px);
+    pointer-events:none; transition:opacity .15s, transform .15s;
+  }
+  .ghost-bubble.show{ opacity:1; transform:translateY(0); }
+  .ghost-bubble.below{ transform:translateY(-4px); }
+  .ghost-bubble.below.show{ transform:translateY(0); }
+  .ghost-bubble::after{
+    content:''; position:absolute; left:var(--arrow-left, 14px); border:6px solid transparent;
+    top:100%; border-top-color:var(--border);
+  }
+  .ghost-bubble.below::after{ top:auto; bottom:100%; border-top-color:transparent; border-bottom-color:var(--border); }
+
+  .ghost-pos-grid{
+    display:grid; grid-template-columns:repeat(3, 36px); grid-template-rows:repeat(3, 36px);
+    gap:6px; justify-content:center; margin:2px 0 4px;
+  }
+  .ghost-pos-btn{
+    position:relative; width:36px; height:36px; background:var(--panel2);
+    border:2px solid var(--border); border-radius:6px; cursor:pointer; padding:0; min-height:auto;
+  }
+  .ghost-pos-btn:hover{ border-color:var(--accent); }
+  .ghost-pos-btn.selected{ border-color:#5bd68c; }
+  .ghost-pos-btn .dot{ position:absolute; width:8px; height:8px; border-radius:50%; background:var(--accent); }
+  .ghost-pos-blank{ visibility:hidden; }
+  .ghost-pos-btn[data-pos="top-left"] .dot{ top:4px; left:4px; }
+  .ghost-pos-btn[data-pos="top-center"] .dot{ top:4px; left:50%; transform:translateX(-50%); }
+  .ghost-pos-btn[data-pos="top-right"] .dot{ top:4px; right:4px; }
+  .ghost-pos-btn[data-pos="middle-left"] .dot{ top:50%; left:4px; transform:translateY(-50%); }
+  .ghost-pos-btn[data-pos="middle-right"] .dot{ top:50%; right:4px; transform:translateY(-50%); }
+  .ghost-pos-btn[data-pos="bottom-left"] .dot{ bottom:4px; left:4px; }
+  .ghost-pos-btn[data-pos="bottom-center"] .dot{ bottom:4px; left:50%; transform:translateX(-50%); }
+  .ghost-pos-btn[data-pos="bottom-right"] .dot{ bottom:4px; right:4px; }
+
+  .ghost-picker-grid{
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:10px;
+    max-height:320px; overflow-y:auto; padding:2px;
+  }
+  .ghost-picker-item{
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    background:var(--panel2); border:2px solid var(--border); border-radius:8px;
+    padding:6px 4px; cursor:pointer; transition:border-color .15s, transform .1s;
+  }
+  .ghost-picker-item:hover{ border-color:var(--accent); transform:translateY(-2px); }
+  .ghost-picker-item.selected{ border-color:#5bd68c; }
+  .ghost-picker-item img{ width:100%; height:52px; object-fit:contain; }
+  .ghost-picker-item span{ font-size:10.5px; color:var(--muted); text-align:center; }
+
+  /* Add to Home Screen guide */
+  .a2hs-steps{ display:flex; flex-direction:column; gap:10px; }
+  .a2hs-step{ display:flex; align-items:flex-start; gap:10px; font-size:13.5px; line-height:1.5; }
+  .a2hs-step .num{
+    flex:0 0 auto; width:22px; height:22px; border-radius:50%; background:var(--accent2);
+    color:#fff; font-size:12px; display:flex; align-items:center; justify-content:center; font-weight:700;
+  }
+  .a2hs-share-icon{ display:inline-flex; vertical-align:middle; margin:0 3px; }
+
   [hidden]{ display:none !important; }
 </style>
 </head>
@@ -110,6 +245,30 @@
   <div id="actions">
     <button id="outlineBtn" title="Show outline">📑 Outline</button>
     <button id="homeBtn" title="Back to home">🏠 Home</button>
+    <div id="settingsWrap">
+      <button id="settingsBtn" title="Settings">⚙️ Settings</button>
+      <div id="settingsPanel" hidden>
+        <div class="settings-row">
+          <div class="settings-row-text">
+            <strong>Ghost Companion</strong>
+            <span>A little companion hangs out on screen. Tap it for a kind word.</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="btn-sm" id="changeGhostBtn" hidden>Change</button>
+            <button class="toggle-switch" id="showGhostToggle" role="switch" aria-checked="false">
+              <span class="toggle-knob"></span>
+            </button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-text">
+            <strong>Add to Home Screen</strong>
+            <span>Install this as an app icon on your iPad or iPhone.</span>
+          </div>
+          <button class="btn-sm" id="addHomeScreenBtn">How to add</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -184,6 +343,37 @@
   </header>
   <div id="outlineList"></div>
 </aside>
+
+<!-- Ghost Picker Modal -->
+<div class="modal-overlay" id="ghostPickerModal" hidden>
+  <div class="modal-box" style="width:520px;">
+    <div class="modal-header">
+      <span>👻 Pick Your Companion</span>
+      <button id="closeGhostPickerBtn">✕</button>
+    </div>
+    <div class="modal-sub">Choose a little companion to keep you company.</div>
+    <div class="ghost-picker-grid" id="ghostPickerGrid"></div>
+    <div class="modal-sub" style="border-top:1px solid var(--border); padding-top:10px;">Starting position — you can also drag it anywhere on screen afterward.</div>
+    <div class="ghost-pos-grid" id="ghostPosGrid"></div>
+  </div>
+</div>
+
+<!-- Add to Home Screen Guide Modal -->
+<div class="modal-overlay" id="a2hsModal" hidden>
+  <div class="modal-box">
+    <div class="modal-header">
+      <span>📲 Add to Home Screen</span>
+      <button id="closeA2hsBtn">✕</button>
+    </div>
+    <div id="a2hsContent"></div>
+  </div>
+</div>
+
+<!-- Ghost Companion -->
+<div class="ghost-float" id="ghostFloat" title="Drag me, or tap for a kind word">
+  <div class="ghost-bubble" id="ghostBubble"></div>
+  <img id="ghostFloatImg" src="" alt="Companion">
+</div>
 
 <script>
 (function(){
@@ -735,7 +925,320 @@
     })(root, 0);
   }
 
+  // ---------- Settings ----------
+  const SETTINGS_KEY = "nestedNotesSettings.v1";
+  function loadSettings(){
+    try{
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if(raw) return Object.assign({ showGhost:false, selectedGhost:"Default.png", ghostPosition:"bottom-right", ghostCustomPos:null }, JSON.parse(raw));
+    }catch(e){}
+    return { showGhost:false, selectedGhost:"Default.png", ghostPosition:"bottom-right", ghostCustomPos:null };
+  }
+  function saveSettings(){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
+  let settings = loadSettings();
+
+  const settingsBtn = el("settingsBtn");
+  const settingsPanel = el("settingsPanel");
+  settingsBtn.addEventListener("click", (e)=>{
+    e.stopPropagation();
+    settingsPanel.hidden = !settingsPanel.hidden;
+  });
+  document.addEventListener("click", (e)=>{
+    if(!settingsPanel.hidden && !settingsPanel.contains(e.target) && e.target !== settingsBtn){
+      settingsPanel.hidden = true;
+    }
+  });
+
+  // ---------- Ghost Companion ----------
+  const GHOST_FILES = [
+    'BillyButcher.png', 'BlackNoir.png', 'Castiel.png', 'Chucky.png', 'DarthVadar.png',
+    'Dean.png', 'Default.png', 'Demon.png', 'Demon2.png', 'EyeOfSauruman.png',
+    'FreddyKruger.png', 'Gandalf.png', 'Hobbit.png', 'It.png', 'JasonVorhees.png',
+    'KingTheoden.png', 'LukeSkywalker.png', 'MichaelMeyers.png', 'PrincessLeia.png',
+    'R2D2.png', 'Sam.png', 'Starlight.png', 'WalmartHomelander.png', 'Wraith.png'
+  ];
+
+  const GHOST_COMMENTS = {
+    BillyButcher: ["Oi, you're doing a bang-up job — don't let anyone tell you otherwise.", "Solid work, mate. Proper thorough, that.", "You handled that like a right professional. Respect."],
+    Castiel: ["I have observed your work. It is good.", "Your diligence does not go unnoticed, even by an angel.", "You carry today's work well. Be at peace."],
+    Chucky: ["You're killer at this — in the best way.", "I've got my eye on you... and it's impressed.", "Doll, you are crushing these notes."],
+    DarthVadar: ["The Force is strong with your work ethic.", "Impressive. Most impressive, in fact.", "Your focus rivals that of a true master."],
+    Dean: ["Nice work today — you've earned a slice of pie.", "You handle pressure better than most hunters I know.", "Solid hunt, solid notes. Same skill set, really."],
+    Default: ["You're doing great today!", "Boo! ...I mean, good job.", "Keep it up, you're doing wonderfully."],
+    Demon: ["You're doing devilishly good work.", "Even I can't find anything to complain about — nice job.", "Sinfully good effort today."],
+    Demon2: ["Two demons agree: you're crushing it.", "You made a believer out of me.", "Impressively good work — didn't see that coming."],
+    EyeOfSauruman: ["I see all — and what I see is excellent work.", "My gaze rests on you, and I approve.", "Even from afar, your effort is unmistakable."],
+    FreddyKruger: ["You're the stuff dreams are made of — nice work.", "Sweet dreams tonight, you've earned them.", "You nailed it. No nightmares here, just good work."],
+    Gandalf: ["You are more capable than you know.", "A wise choice, taking such care in your notes.", "Even the smallest efforts change the course of the day. Well done."],
+    Hobbit: ["You've got a good heart and a keen eye — well done.", "Second breakfast is earned after work like that.", "Small steps, steady pace — you're doing wonderfully."],
+    It: ["You float above the rest — great work today.", "Everyone down here thinks you're doing great.", "Balloons and all, you're a natural at this."],
+    JasonVorhees: ["Quiet, steady, relentless — just like your work ethic.", "Camp's proud of you today.", "You get it done. Every time."],
+    KingTheoden: ["Rise, for your work today has honored the house.", "A noble effort, worthy of the Mark.", "Your courage today did not go unnoticed."],
+    LukeSkywalker: ["Trust your instincts — they're serving you well today.", "You're stronger at this than you think.", "The Force is with you, and so is good work."],
+    MichaelMeyers: ["Steady. Focused. Unstoppable. That's you today.", "Even silence can say 'well done.'", "You showed up and got it done. That's all that matters."],
+    PrincessLeia: ["You're our only hope for getting this done right — and you delivered.", "Leadership looks good on you today.", "Rebel or not, that was a job well done."],
+    R2D2: ["*happy beeps* — translation: great job today!", "Beep boop beep! (That means 'nicely done.')", "Whirr-click! You're doing amazing."],
+    Sam: ["You did your homework and it shows.", "Thorough, careful, thoughtful — nice work today.", "You found the pattern others would've missed."],
+    Starlight: ["You shine brighter than you realize.", "That's real heroism — showing up and doing it right.", "Keep that light going, you're doing great."],
+    WalmartHomelander: ["Bargain-brand hero, top-tier effort. Nice work.", "You didn't need superpowers for that — just skill.", "Budget cape, full-price performance. Well done."],
+    Wraith: ["I drift nearby, and what I see pleases me — good work.", "Even shadows notice good effort.", "You've done well. Rest easy tonight."]
+  };
+
+  const GHOST_POSITIONS = [
+    { id:'top-left', label:'Top Left' }, { id:'top-center', label:'Top Center' }, { id:'top-right', label:'Top Right' },
+    { id:'middle-left', label:'Middle Left' }, { id:'middle-right', label:'Middle Right' },
+    { id:'bottom-left', label:'Bottom Left' }, { id:'bottom-center', label:'Bottom Center' }, { id:'bottom-right', label:'Bottom Right' }
+  ];
+
+  function ghostDisplayName(base){
+    const spaced = base.replace(/([a-z0-9])([A-Z])/g, '$1 $2').trim();
+    return spaced.split(' ').map((w,i)=>(i>0 && /^(Of|The|And)$/.test(w)) ? w.toLowerCase() : w).join(' ');
+  }
+
+  const showGhostToggle = el("showGhostToggle");
+  const changeGhostBtn = el("changeGhostBtn");
+
+  function applySettingsUI(){
+    showGhostToggle.classList.toggle("on", !!settings.showGhost);
+    showGhostToggle.setAttribute("aria-checked", !!settings.showGhost);
+    changeGhostBtn.hidden = !settings.showGhost;
+    renderGhost();
+  }
+
+  showGhostToggle.addEventListener("click", ()=>{
+    settings.showGhost = !settings.showGhost;
+    saveSettings();
+    applySettingsUI();
+    if(settings.showGhost) openGhostPicker();
+  });
+  changeGhostBtn.addEventListener("click", (e)=>{ e.stopPropagation(); openGhostPicker(); });
+
+  const ghostPickerModal = el("ghostPickerModal");
+  function openGhostPicker(){
+    settingsPanel.hidden = true;
+    renderGhostPicker();
+    renderGhostPositionGrid();
+    ghostPickerModal.hidden = false;
+  }
+  function closeGhostPicker(){ ghostPickerModal.hidden = true; }
+  el("closeGhostPickerBtn").addEventListener("click", closeGhostPicker);
+  ghostPickerModal.addEventListener("click", (e)=>{ if(e.target === ghostPickerModal) closeGhostPicker(); });
+
+  function renderGhostPicker(){
+    const grid = el("ghostPickerGrid");
+    const selected = settings.selectedGhost;
+    grid.innerHTML = "";
+    GHOST_FILES.forEach(f=>{
+      const name = ghostDisplayName(f.replace(/\.png$/i, ""));
+      const item = document.createElement("div");
+      item.className = "ghost-picker-item" + (f === selected ? " selected" : "");
+      item.innerHTML = `<img src="ghosts/${encodeURIComponent(f)}" alt="${name}"><span>${name}</span>`;
+      item.addEventListener("click", ()=>selectGhost(f));
+      grid.appendChild(item);
+    });
+  }
+
+  function selectGhost(file){
+    settings.selectedGhost = file;
+    saveSettings();
+    renderGhostPicker();
+    renderGhost();
+    closeGhostPicker();
+  }
+
+  function renderGhostPositionGrid(){
+    const grid = el("ghostPosGrid");
+    const selected = settings.ghostPosition || "bottom-right";
+    const cells = ['top-left','top-center','top-right','middle-left',null,'middle-right','bottom-left','bottom-center','bottom-right'];
+    grid.innerHTML = "";
+    cells.forEach(pos=>{
+      if(!pos){ const blank = document.createElement("div"); blank.className = "ghost-pos-blank"; grid.appendChild(blank); return; }
+      const entry = GHOST_POSITIONS.find(p=>p.id===pos);
+      const btn = document.createElement("button");
+      btn.className = "ghost-pos-btn" + (pos === selected ? " selected" : "");
+      btn.dataset.pos = pos;
+      btn.title = entry.label;
+      btn.innerHTML = '<span class="dot"></span>';
+      btn.addEventListener("click", ()=>selectGhostPosition(pos));
+      grid.appendChild(btn);
+    });
+  }
+
+  function selectGhostPosition(pos){
+    settings.ghostPosition = pos;
+    settings.ghostCustomPos = null;
+    saveSettings();
+    renderGhostPositionGrid();
+    renderGhost();
+  }
+
+  function clampGhostPos(left, top){
+    const w = 48, h = 48, margin = 2;
+    return {
+      left: Math.max(margin, Math.min(left, window.innerWidth - w - margin)),
+      top: Math.max(margin, Math.min(top, window.innerHeight - h - margin))
+    };
+  }
+
+  const ghostFloat = el("ghostFloat");
+  const ghostFloatImg = el("ghostFloatImg");
+  const ghostBubble = el("ghostBubble");
+
+  function renderGhost(){
+    const show = !!settings.showGhost && !!settings.selectedGhost;
+    ghostFloat.classList.toggle("visible", show);
+    ghostBubble.classList.remove("show");
+    if(settings.ghostCustomPos){
+      const p = clampGhostPos(settings.ghostCustomPos.left, settings.ghostCustomPos.top);
+      ghostFloat.dataset.pos = "custom";
+      ghostFloat.style.left = p.left + "px";
+      ghostFloat.style.top = p.top + "px";
+      ghostFloat.style.right = "auto";
+      ghostFloat.style.bottom = "auto";
+    } else {
+      ghostFloat.dataset.pos = settings.ghostPosition || "bottom-right";
+      ghostFloat.style.left = "";
+      ghostFloat.style.top = "";
+      ghostFloat.style.right = "";
+      ghostFloat.style.bottom = "";
+    }
+    if(show){
+      const name = ghostDisplayName(settings.selectedGhost.replace(/\.png$/i, ""));
+      ghostFloatImg.src = "ghosts/" + encodeURIComponent(settings.selectedGhost);
+      ghostFloatImg.alt = name;
+      ghostFloat.title = name;
+    }
+  }
+
+  window.addEventListener("resize", ()=>{ if(settings.ghostCustomPos) renderGhost(); });
+
+  let ghostDragState = null;
+  let ghostJustDragged = false;
+
+  ghostFloat.addEventListener("pointerdown", (e)=>{
+    if(!ghostFloat.classList.contains("visible")) return;
+    const rect = ghostFloat.getBoundingClientRect();
+    ghostDragState = { startX:e.clientX, startY:e.clientY, origLeft:rect.left, origTop:rect.top, moved:false };
+    window.addEventListener("pointermove", onGhostDrag);
+    window.addEventListener("pointerup", endGhostDrag);
+  });
+
+  function onGhostDrag(e){
+    if(!ghostDragState) return;
+    const dx = e.clientX - ghostDragState.startX;
+    const dy = e.clientY - ghostDragState.startY;
+    if(!ghostDragState.moved){
+      if(Math.hypot(dx,dy) < 4) return;
+      ghostDragState.moved = true;
+      ghostFloat.classList.add("dragging");
+      ghostBubble.classList.remove("show");
+    }
+    const p = clampGhostPos(ghostDragState.origLeft + dx, ghostDragState.origTop + dy);
+    ghostFloat.dataset.pos = "custom";
+    ghostFloat.style.left = p.left + "px";
+    ghostFloat.style.top = p.top + "px";
+    ghostFloat.style.right = "auto";
+    ghostFloat.style.bottom = "auto";
+  }
+
+  function endGhostDrag(){
+    window.removeEventListener("pointermove", onGhostDrag);
+    window.removeEventListener("pointerup", endGhostDrag);
+    if(!ghostDragState) return;
+    if(ghostDragState.moved){
+      ghostFloat.classList.remove("dragging");
+      const rect = ghostFloat.getBoundingClientRect();
+      settings.ghostCustomPos = { left: rect.left, top: rect.top };
+      saveSettings();
+      ghostJustDragged = true;
+      setTimeout(()=>{ ghostJustDragged = false; }, 0);
+    }
+    ghostDragState = null;
+  }
+
+  function positionGhostBubble(){
+    const fRect = ghostFloat.getBoundingClientRect();
+    const gap = 10, margin = 8;
+    const bw = ghostBubble.offsetWidth, bh = ghostBubble.offsetHeight;
+    const spaceAbove = fRect.top, spaceBelow = window.innerHeight - fRect.bottom;
+    const below = spaceAbove < (bh + gap + margin) && spaceBelow >= spaceAbove;
+    ghostBubble.classList.toggle("below", below);
+    ghostBubble.style.top = below ? (fRect.height + gap) + "px" : "auto";
+    ghostBubble.style.bottom = below ? "auto" : (fRect.height + gap) + "px";
+    let bubbleViewportLeft = fRect.right - bw;
+    if(bubbleViewportLeft < margin) bubbleViewportLeft = fRect.left;
+    if(bubbleViewportLeft + bw > window.innerWidth - margin) bubbleViewportLeft = window.innerWidth - margin - bw;
+    bubbleViewportLeft = Math.max(margin, bubbleViewportLeft);
+    ghostBubble.style.left = (bubbleViewportLeft - fRect.left) + "px";
+    const floatCenterViewport = fRect.left + fRect.width/2;
+    let arrowLeft = floatCenterViewport - bubbleViewportLeft;
+    arrowLeft = Math.max(10, Math.min(arrowLeft, bw - 10));
+    ghostBubble.style.setProperty("--arrow-left", arrowLeft + "px");
+  }
+
+  let ghostBubbleTimer = null;
+  ghostFloat.addEventListener("click", (e)=>{
+    e.stopPropagation();
+    if(ghostJustDragged) return;
+    if(!settings.selectedGhost) return;
+    const base = settings.selectedGhost.replace(/\.png$/i, "");
+    let msg;
+    if(base === "BlackNoir"){ msg = "..."; }
+    else{
+      const pool = GHOST_COMMENTS[base] || GHOST_COMMENTS.Default;
+      msg = pool[Math.floor(Math.random()*pool.length)];
+    }
+    ghostBubble.textContent = msg;
+    positionGhostBubble();
+    ghostBubble.classList.add("show");
+    clearTimeout(ghostBubbleTimer);
+    ghostBubbleTimer = setTimeout(()=>ghostBubble.classList.remove("show"), 4000);
+  });
+
+  // ---------- Add to Home Screen ----------
+  const shareIconSVG = '<svg class="a2hs-share-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13"/><path d="M8 6l4-4 4 4"/><rect x="4" y="11" width="16" height="10" rx="2"/></svg>';
+
+  function isStandalone(){
+    return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  }
+  function isIOS(){
+    const ua = navigator.userAgent;
+    const iOSDevice = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    return iOSDevice;
+  }
+  function isSafari(){
+    const ua = navigator.userAgent;
+    return /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+  }
+
+  el("addHomeScreenBtn").addEventListener("click", ()=>{
+    settingsPanel.hidden = true;
+    const content = el("a2hsContent");
+    if(isStandalone()){
+      content.innerHTML = `<div class="modal-sub">You're already using this as an installed app — nice.</div>`;
+    } else if(isIOS() && isSafari()){
+      content.innerHTML = `
+        <div class="a2hs-steps">
+          <div class="a2hs-step"><span class="num">1</span><span>Tap the Share button ${shareIconSVG} in Safari's toolbar.</span></div>
+          <div class="a2hs-step"><span class="num">2</span><span>Scroll down the menu and tap <strong>"Add to Home Screen"</strong>.</span></div>
+          <div class="a2hs-step"><span class="num">3</span><span>Tap <strong>"Add"</strong> in the top right.</span></div>
+        </div>
+        <div class="modal-sub" style="border-top:1px solid var(--border); padding-top:10px;">
+          Once added, it opens full-screen with its own icon — no browser bar, just like a real app. iOS doesn't allow a website to do this step automatically, so this part is manual.
+        </div>`;
+    } else if(isIOS()){
+      content.innerHTML = `<div class="modal-sub">Add to Home Screen only works from <strong>Safari</strong> on iPad/iPhone — this looks like a different browser. Open this page in Safari, then use its Share button to add it.</div>`;
+    } else {
+      content.innerHTML = `<div class="modal-sub">This guide is for iPad/iPhone Safari. On this device, look for an "Install app" or "Add to Home Screen" option in your browser's menu — the exact steps vary by browser.</div>`;
+    }
+    el("a2hsModal").hidden = false;
+  });
+  function closeA2hs(){ el("a2hsModal").hidden = true; }
+  el("closeA2hsBtn").addEventListener("click", closeA2hs);
+  el("a2hsModal").addEventListener("click", (e)=>{ if(e.target === el("a2hsModal")) closeA2hs(); });
+
   // ---------- Init ----------
+  applySettingsUI();
   renderLibrary();
 })();
 </script>
