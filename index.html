@@ -62,26 +62,26 @@
   #dateInput{ flex:0 0 150px; }
 
   .toolbar{ display:flex; align-items:center; gap:10px; padding:8px 14px; background:var(--panel); border-bottom:1px solid var(--border); flex-wrap:wrap; }
-  .mode-toggle{ display:flex; gap:4px; background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:2px; }
-  .mode-toggle button{ border:none; background:transparent; padding:6px 12px; min-height:32px; }
-  .mode-toggle button.active{ background:var(--accent2); color:#fff; border-radius:6px; }
-  #typeTools, #drawTools{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-  #typeTools button, #drawTools button{ padding:6px 10px; min-height:36px; }
-  #typeTools button[data-cmd]{ font-weight:700; width:36px; padding:0; }
+  .tool-select{ display:flex; gap:4px; background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:2px; }
+  .tool-select button{ border:none; background:transparent; padding:6px 12px; min-height:32px; }
+  .tool-select button.active{ background:var(--accent2); color:#fff; border-radius:6px; }
+  #textTools, .draw-tools{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  #textTools button, .draw-tools button{ padding:6px 10px; min-height:36px; }
+  #textTools button[data-cmd]{ font-weight:700; width:36px; padding:0; }
   #nestBtn{ background:var(--accent2); border-color:var(--accent); color:#fff; }
   .swatch{ width:28px; height:28px; border-radius:50%; border:2px solid var(--border); cursor:pointer; padding:0; min-height:auto; }
   .swatch.active{ border-color:#fff; }
-  #penColorCustom{ width:36px; height:36px; padding:2px; border-radius:8px; }
-  #brushSizeWrap{ display:flex; align-items:center; gap:6px; }
-  #brushSize{ width:100px; min-height:auto; padding:0; }
-  #brushSizeLabel{ font-size:12px; color:var(--muted); width:34px; text-align:right; }
+  .color-custom{ width:36px; height:36px; padding:2px; border-radius:8px; }
+  .size-wrap{ display:flex; align-items:center; gap:6px; }
+  .size-wrap input[type=range]{ width:100px; min-height:auto; padding:0; }
+  .size-label{ font-size:12px; color:var(--muted); width:34px; text-align:right; }
 
-  #contentWrap{ flex:1 1 auto; position:relative; min-height:0; }
+  #contentWrap{ flex:1 1 auto; position:relative; min-height:0; overflow:auto; }
   #contentType{
-    position:absolute; inset:0; overflow:auto; padding:18px 20px; outline:none;
+    position:relative; min-height:100%; padding:18px 20px; outline:none; box-sizing:border-box;
     font-size:16px; line-height:1.6; -webkit-user-select:text;
   }
-  #contentDraw{ position:absolute; inset:0; width:100%; height:100%; touch-action:none; background:transparent; }
+  #contentDraw{ position:absolute; top:0; left:0; touch-action:pan-y; background:transparent; }
   .notation{
     background:rgba(255,216,115,.18); border-bottom:2px solid var(--notation); cursor:pointer; border-radius:2px;
   }
@@ -126,35 +126,54 @@
     <input id="dateInput" type="date">
   </div>
   <div class="toolbar">
-    <div class="mode-toggle">
-      <button data-mode="type" class="active">✏️ Type</button>
-      <button data-mode="draw">🖊️ Pen</button>
+    <div class="tool-select">
+      <button data-tool="text" class="active" title="Text cursor — click, select, and type">✍️ Text</button>
+      <button data-tool="pen" title="Pen — freehand ink">🖊️ Pen</button>
+      <button data-tool="highlighter" title="Highlighter — translucent ink, draw over anything">🖍️ Highlighter</button>
+      <button data-tool="eraser" title="Eraser — removes ink only">🧹 Eraser</button>
     </div>
-    <div id="typeTools">
+    <div id="textTools">
       <button data-cmd="bold"><b>B</b></button>
       <button data-cmd="italic"><i>I</i></button>
       <button data-cmd="underline"><u>U</u></button>
-      <button id="highlightBtn" title="Highlight selection">🖍️</button>
+      <button id="highlightBtn" title="Highlight selected text">🖍️ Highlight text</button>
       <button id="nestBtn" title="Attach a nested note to the selected text">🔗 Nest selection</button>
     </div>
-    <div id="drawTools" hidden>
+    <div id="penToolOptions" class="draw-tools" hidden>
       <button class="swatch active" data-color="#f2f2f2" style="background:#f2f2f2"></button>
       <button class="swatch" data-color="#e05b5b" style="background:#e05b5b"></button>
       <button class="swatch" data-color="#5b8cff" style="background:#5b8cff"></button>
       <button class="swatch" data-color="#5bd68c" style="background:#5bd68c"></button>
       <button class="swatch" data-color="#f2b84b" style="background:#f2b84b"></button>
-      <input type="color" id="penColorCustom" value="#ffffff" title="Custom color">
-      <div id="brushSizeWrap">
-        <input type="range" id="brushSize" min="1" max="40" value="4" title="Pen / eraser size">
-        <span id="brushSizeLabel">4px</span>
+      <input type="color" class="color-custom" id="penColorCustom" value="#ffffff" title="Custom color">
+      <div class="size-wrap">
+        <input type="range" id="penSizeSlider" min="1" max="30" value="4" title="Pen size">
+        <span class="size-label" id="penSizeLabel">4px</span>
       </div>
-      <button id="eraserBtn" title="Eraser">🧹 Eraser</button>
-      <button id="clearCanvasBtn" title="Clear drawing">🗑️ Clear</button>
+    </div>
+    <div id="highlighterToolOptions" class="draw-tools" hidden>
+      <button class="swatch active" data-color="#fff59d" style="background:#fff59d"></button>
+      <button class="swatch" data-color="#a5f2a5" style="background:#a5f2a5"></button>
+      <button class="swatch" data-color="#ffb3d1" style="background:#ffb3d1"></button>
+      <button class="swatch" data-color="#a9d4ff" style="background:#a9d4ff"></button>
+      <button class="swatch" data-color="#ffcf8f" style="background:#ffcf8f"></button>
+      <input type="color" class="color-custom" id="hlColorCustom" value="#fff59d" title="Custom color">
+      <div class="size-wrap">
+        <input type="range" id="hlSizeSlider" min="4" max="60" value="18" title="Highlighter size">
+        <span class="size-label" id="hlSizeLabel">18px</span>
+      </div>
+    </div>
+    <div id="eraserToolOptions" class="draw-tools" hidden>
+      <div class="size-wrap">
+        <input type="range" id="eraserSizeSlider" min="4" max="80" value="20" title="Eraser size">
+        <span class="size-label" id="eraserSizeLabel">20px</span>
+      </div>
+      <button id="clearCanvasBtn" title="Clear all ink on this note">🗑️ Clear all ink</button>
     </div>
   </div>
   <div id="contentWrap">
     <div id="contentType" contenteditable="true" spellcheck="true"></div>
-    <canvas id="contentDraw" hidden></canvas>
+    <canvas id="contentDraw"></canvas>
   </div>
 </main>
 
@@ -182,9 +201,10 @@
 
   let data = loadData();
   let currentNoteId = null;
-  let penColor = "#f2f2f2";
-  let brushSize = 4;
-  let erasing = false;
+  let activeTool = "text"; // text | pen | highlighter | eraser
+  let penColor = "#f2f2f2", penSize = 4;
+  let hlColor = "#fff59d", hlSize = 18;
+  let eraserSize = 20;
   let drawing = false;
   let lastX = 0, lastY = 0;
 
@@ -213,7 +233,7 @@
       header: "",
       originLabel: opts.originLabel || "",
       date: todayStr(),
-      mode: "type",
+      tool: "text",
       html: "",
       drawing: "",
       children: [],
@@ -325,7 +345,8 @@
     dateInput.value = note.date || todayStr();
 
     contentType.innerHTML = note.html || "";
-    setMode(note.mode || "type", true);
+    loadCanvasForNote(note);
+    setTool(note.tool || "text", true);
 
     renderBreadcrumb(id);
   }
@@ -337,16 +358,18 @@
     note.header = headerInput.value;
     note.date = dateInput.value;
     note.html = contentType.innerHTML;
-    if(note.mode === "draw"){
-      note.drawing = contentDraw.width ? contentDraw.toDataURL() : note.drawing;
-    }
+    note.tool = activeTool;
+    note.drawing = (contentDraw.width && contentDraw.height) ? contentDraw.toDataURL() : note.drawing;
     saveData();
   }
 
   [headerInput, dateInput].forEach(input=>{
     input.addEventListener("change", saveCurrentContent);
   });
-  contentType.addEventListener("input", ()=>{ saveCurrentContent(); });
+  contentType.addEventListener("input", ()=>{
+    saveCurrentContent();
+    resizeCanvasKeepingInk();
+  });
 
   function renderBreadcrumb(id){
     const chain = [];
@@ -381,30 +404,33 @@
     });
   }
 
-  // ---------- Mode: type vs draw ----------
-  function setMode(mode, isInitialLoad){
-    const note = data.notes[currentNoteId];
-    if(!isInitialLoad) saveCurrentContent();
-    note.mode = mode;
-    document.querySelectorAll(".mode-toggle button").forEach(b=>{
-      b.classList.toggle("active", b.dataset.mode === mode);
+  // ---------- Tool switching ----------
+  // Text/Pen/Highlighter/Eraser all act on the same note area — ink and
+  // typed text stay visible together at all times. The tool only decides
+  // which layer receives the next pointer/keyboard input.
+  function setTool(tool, isInitialLoad){
+    activeTool = tool;
+    document.querySelectorAll(".tool-select button").forEach(b=>{
+      b.classList.toggle("active", b.dataset.tool === tool);
     });
-    el("typeTools").hidden = mode !== "type";
-    el("drawTools").hidden = mode !== "draw";
-    contentType.hidden = mode !== "type";
-    contentDraw.hidden = mode !== "draw";
-    if(mode === "draw"){
-      setupCanvas(note);
-    }
-    saveData();
+    el("textTools").hidden = tool !== "text";
+    el("penToolOptions").hidden = tool !== "pen";
+    el("highlighterToolOptions").hidden = tool !== "highlighter";
+    el("eraserToolOptions").hidden = tool !== "eraser";
+
+    const textActive = tool === "text";
+    contentType.style.pointerEvents = textActive ? "auto" : "none";
+    contentDraw.style.pointerEvents = textActive ? "none" : "auto";
+
+    if(!isInitialLoad) saveCurrentContent();
   }
 
-  document.querySelectorAll(".mode-toggle button").forEach(btn=>{
-    btn.addEventListener("click", ()=>setMode(btn.dataset.mode));
+  document.querySelectorAll(".tool-select button").forEach(btn=>{
+    btn.addEventListener("click", ()=>setTool(btn.dataset.tool));
   });
 
   // ---------- Type tools ----------
-  document.querySelectorAll("#typeTools button[data-cmd]").forEach(btn=>{
+  document.querySelectorAll("#textTools button[data-cmd]").forEach(btn=>{
     btn.addEventListener("mousedown", (e)=>e.preventDefault());
     btn.addEventListener("click", ()=>{
       document.execCommand(btn.dataset.cmd, false, null);
@@ -414,7 +440,7 @@
   });
   el("highlightBtn").addEventListener("mousedown", (e)=>e.preventDefault());
   el("highlightBtn").addEventListener("click", ()=>{
-    document.execCommand("hiliteColor", false, "#fff59d");
+    document.execCommand("hiliteColor", false, hlColor);
     contentType.focus();
     saveCurrentContent();
   });
@@ -461,11 +487,19 @@
     }
   });
 
-  // ---------- Draw tools ----------
-  function setupCanvas(note){
+  // ---------- Ink layer ----------
+  // The canvas always covers the note's full scrollable height (not just the
+  // viewport) so ink stays put under the text as the note grows and scrolls.
+  function canvasTargetSize(){
     const wrap = el("contentWrap");
+    return {
+      w: wrap.clientWidth,
+      h: Math.max(contentType.scrollHeight, wrap.clientHeight)
+    };
+  }
+
+  function applyCanvasSize(w, h){
     const dpr = window.devicePixelRatio || 1;
-    const w = wrap.clientWidth, h = wrap.clientHeight;
     contentDraw.style.width = w + "px";
     contentDraw.style.height = h + "px";
     contentDraw.width = Math.round(w * dpr);
@@ -473,6 +507,11 @@
     ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
+  }
+
+  function loadCanvasForNote(note){
+    const {w, h} = canvasTargetSize();
+    applyCanvasSize(w, h);
     if(note.drawing){
       const img = new Image();
       img.onload = ()=>{ ctx.drawImage(img, 0, 0, w, h); };
@@ -480,71 +519,95 @@
     }
   }
 
-  function getPos(e){
-    const rect = contentDraw.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  function resizeCanvasKeepingInk(){
+    const {w, h} = canvasTargetSize();
+    if(contentDraw.clientWidth === w && contentDraw.clientHeight === h) return;
+    const prevDataURL = (contentDraw.width && contentDraw.height) ? contentDraw.toDataURL() : null;
+    applyCanvasSize(w, h);
+    if(prevDataURL){
+      const img = new Image();
+      img.onload = ()=>{ ctx.drawImage(img, 0, 0, w, h); };
+      img.src = prevDataURL;
+    }
+  }
+
+  function currentStrokeStyle(){
+    if(activeTool === "eraser") return { color:"#000", size:eraserSize, alpha:1, composite:"destination-out" };
+    if(activeTool === "highlighter") return { color:hlColor, size:hlSize, alpha:0.35, composite:"source-over" };
+    return { color:penColor, size:penSize, alpha:1, composite:"source-over" };
   }
 
   contentDraw.addEventListener("pointerdown", (e)=>{
+    if(activeTool === "text") return;
+    if(e.pointerType === "touch") return; // let a finger pan/scroll; pen or mouse draws
+    e.preventDefault();
     drawing = true;
-    contentDraw.setPointerCapture(e.pointerId);
-    const p = getPos(e);
-    lastX = p.x; lastY = p.y;
+    lastX = e.offsetX; lastY = e.offsetY;
+    try{ contentDraw.setPointerCapture(e.pointerId); }catch(err){}
   });
   contentDraw.addEventListener("pointermove", (e)=>{
     if(!drawing) return;
-    const p = getPos(e);
-    ctx.globalCompositeOperation = erasing ? "destination-out" : "source-over";
-    ctx.strokeStyle = penColor;
-    ctx.lineWidth = brushSize;
+    const style = currentStrokeStyle();
+    ctx.globalCompositeOperation = style.composite;
+    ctx.globalAlpha = style.alpha;
+    ctx.strokeStyle = style.color;
+    ctx.lineWidth = style.size;
     ctx.beginPath();
     ctx.moveTo(lastX, lastY);
-    ctx.lineTo(p.x, p.y);
+    ctx.lineTo(e.offsetX, e.offsetY);
     ctx.stroke();
-    lastX = p.x; lastY = p.y;
+    lastX = e.offsetX; lastY = e.offsetY;
   });
   function endStroke(){
     if(!drawing) return;
     drawing = false;
+    ctx.globalAlpha = 1;
     saveCurrentContent();
   }
   contentDraw.addEventListener("pointerup", endStroke);
   contentDraw.addEventListener("pointerleave", endStroke);
   contentDraw.addEventListener("pointercancel", endStroke);
 
-  document.querySelectorAll(".swatch").forEach(sw=>{
-    sw.addEventListener("click", ()=>{
-      penColor = sw.dataset.color;
-      erasing = false;
-      document.querySelectorAll(".swatch").forEach(s=>s.classList.remove("active"));
-      sw.classList.add("active");
-      el("eraserBtn").classList.remove("active");
+  function wireColorPanel(panelId, customId, setColor){
+    const panel = el(panelId);
+    panel.querySelectorAll(".swatch").forEach(sw=>{
+      sw.addEventListener("click", ()=>{
+        setColor(sw.dataset.color);
+        panel.querySelectorAll(".swatch").forEach(s=>s.classList.remove("active"));
+        sw.classList.add("active");
+      });
     });
+    el(customId).addEventListener("input", (e)=>{
+      setColor(e.target.value);
+      panel.querySelectorAll(".swatch").forEach(s=>s.classList.remove("active"));
+    });
+  }
+  wireColorPanel("penToolOptions", "penColorCustom", (c)=>{ penColor = c; });
+  wireColorPanel("highlighterToolOptions", "hlColorCustom", (c)=>{ hlColor = c; });
+
+  el("penSizeSlider").addEventListener("input", (e)=>{
+    penSize = Number(e.target.value);
+    el("penSizeLabel").textContent = penSize + "px";
   });
-  el("penColorCustom").addEventListener("input", (e)=>{
-    penColor = e.target.value;
-    erasing = false;
-    document.querySelectorAll(".swatch").forEach(s=>s.classList.remove("active"));
-    el("eraserBtn").classList.remove("active");
+  el("hlSizeSlider").addEventListener("input", (e)=>{
+    hlSize = Number(e.target.value);
+    el("hlSizeLabel").textContent = hlSize + "px";
   });
-  el("eraserBtn").addEventListener("click", ()=>{
-    erasing = !erasing;
-    el("eraserBtn").classList.toggle("active", erasing);
+  el("eraserSizeSlider").addEventListener("input", (e)=>{
+    eraserSize = Number(e.target.value);
+    el("eraserSizeLabel").textContent = eraserSize + "px";
   });
-  el("brushSize").addEventListener("input", (e)=>{
-    brushSize = Number(e.target.value);
-    el("brushSizeLabel").textContent = brushSize + "px";
-  });
+
   el("clearCanvasBtn").addEventListener("click", ()=>{
-    if(!confirm("Clear the whole drawing?")) return;
+    if(!confirm("Clear all ink on this note? Typed text is not affected.")) return;
     ctx.clearRect(0,0,contentDraw.width, contentDraw.height);
     saveCurrentContent();
   });
 
   window.addEventListener("resize", ()=>{
-    if(currentNoteId && data.notes[currentNoteId] && data.notes[currentNoteId].mode === "draw"){
+    if(currentNoteId){
       saveCurrentContent();
-      setupCanvas(data.notes[currentNoteId]);
+      resizeCanvasKeepingInk();
     }
   });
 
