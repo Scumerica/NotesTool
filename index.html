@@ -98,6 +98,18 @@
     font-size:16px; line-height:1.6; -webkit-user-select:text;
   }
   #contentDraw{ position:absolute; top:0; left:0; touch-action:none; background:transparent; }
+  /* Ink-nest zones: invisible-except-for-a-border clickable regions layered
+     over the canvas, marking a highlighter stroke drawn with the Nest
+     Highlighter tool as linked to a nested note. Only clickable while the
+     Text tool is active (via .interactive) so they never intercept pen
+     input meant for drawing new strokes on top of them. */
+  #inkNestLayer{ position:absolute; top:0; left:0; pointer-events:none; }
+  .ink-nest-zone{
+    position:absolute; box-sizing:border-box; border-radius:4px; cursor:pointer;
+    border:1.5px dashed var(--notation); pointer-events:none;
+  }
+  #inkNestLayer.interactive .ink-nest-zone{ pointer-events:auto; }
+  .ink-nest-zone:hover{ background:rgba(255,216,115,.12); }
   .notation{
     background:rgba(255,216,115,.18); border-bottom:2px solid var(--notation); cursor:pointer; border-radius:2px;
     user-select:none; -webkit-user-select:none; -webkit-user-drag:none;
@@ -369,6 +381,7 @@
         <div class="sub-tool-select">
           <button data-subtool="pen" class="active" title="Pen — freehand ink">🖊️ Pen</button>
           <button data-subtool="highlighter" title="Highlighter — translucent ink, draw over anything">🖍️ Highlighter</button>
+          <button data-subtool="nestHighlighter" title="Nest Highlighter — highlight an area to create a nested note">🔗 Nest Highlighter</button>
           <button data-subtool="eraser" title="Eraser — removes ink only">🧹 Eraser</button>
         </div>
       </div>
@@ -408,6 +421,7 @@
   <div id="contentWrap">
     <div id="contentType" contenteditable="true" spellcheck="true"></div>
     <canvas id="contentDraw"></canvas>
+    <div id="inkNestLayer"></div>
   </div>
 </main>
 
@@ -590,6 +604,7 @@
   const dateInput = el("dateInput");
   const contentType = el("contentType");
   const contentDraw = el("contentDraw");
+  const inkNestLayer = el("inkNestLayer");
   const outlinePanel = el("outlinePanel");
   const outlineList = el("outlineList");
   const ctx = contentDraw.getContext("2d");
@@ -608,6 +623,7 @@
       tool: "text",
       html: "",
       drawing: "",
+      inkNests: [],
       children: [],
       createdAt: Date.now()
     };
@@ -730,6 +746,18 @@
     }
   }
 
+  // Removes the clickable ink-nest zone linking to `childId` from
+  // `parentNote`. The highlighter ink itself is left alone — same "erase
+  // the link, not the mark" semantics as unwrapNotationInNote above.
+  function removeInkNestFromParent(parentNote, childId){
+    if(!parentNote || !parentNote.inkNests) return;
+    const before = parentNote.inkNests.length;
+    parentNote.inkNests = parentNote.inkNests.filter(z=>z.childId !== childId);
+    if(parentNote.inkNests.length !== before && currentNoteId === parentNote.id){
+      renderInkNestZones(parentNote);
+    }
+  }
+
   // Shared delete flow for the outline panel, the in-note delete button, and
   // the library's root-card delete button. Confirms, unwraps the notation
   // chip in the parent (if any) so the phrase text survives, purges the note
@@ -750,6 +778,7 @@
 
     if(parentId && data.notes[parentId]){
       unwrapNotationInNote(data.notes[parentId], id);
+      removeInkNestFromParent(data.notes[parentId], id);
     }
     deleteNoteCompletely(id);
 
@@ -887,12 +916,13 @@
       b.classList.toggle("active", b.dataset.subtool === tool);
     });
     el("penToolOptions").hidden = tool !== "pen";
-    el("highlighterToolOptions").hidden = tool !== "highlighter";
+    el("highlighterToolOptions").hidden = !(tool === "highlighter" || tool === "nestHighlighter");
     el("eraserToolOptions").hidden = tool !== "eraser";
 
     const textActive = base === "text";
     contentType.style.pointerEvents = textActive ? "auto" : "none";
     contentDraw.style.pointerEvents = textActive ? "none" : "auto";
+    inkNestLayer.classList.toggle("interactive", textActive);
 
     if(!isInitialLoad) saveCurrentContent();
   }
@@ -1050,6 +1080,8 @@
     ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
+    inkNestLayer.style.width = w + "px";
+    inkNestLayer.style.height = h + "px";
   }
 
   // Draws a preserved snapshot back onto the canvas at its true 1:1
@@ -1073,6 +1105,28 @@
       img.onload = ()=>{ drawPreservedSnapshot(img); };
       img.src = note.drawing;
     }
+    renderInkNestZones(note);
+  }
+
+  // Rebuilds the clickable overlay zones for a note's ink-nested notes
+  // (created with the Nest Highlighter tool) from its stored inkNests list.
+  function renderInkNestZones(note){
+    inkNestLayer.innerHTML = "";
+    (note.inkNests || []).forEach(entry=>{
+      const zone = document.createElement("div");
+      zone.className = "ink-nest-zone";
+      zone.dataset.childId = entry.childId;
+      zone.title = "Open nested note";
+      zone.style.left = entry.x + "px";
+      zone.style.top = entry.y + "px";
+      zone.style.width = entry.w + "px";
+      zone.style.height = entry.h + "px";
+      zone.addEventListener("click", ()=>{
+        saveCurrentContent();
+        openNote(entry.childId);
+      });
+      inkNestLayer.appendChild(zone);
+    });
   }
 
   function resizeCanvasKeepingInk(){
@@ -1087,9 +1141,11 @@
     }
   }
 
+  function isHighlighterFamily(tool){ return tool === "highlighter" || tool === "nestHighlighter"; }
+
   function currentStrokeStyle(){
     if(activeTool === "eraser") return { color:"#000", size:eraserSize, alpha:1, composite:"destination-out" };
-    if(activeTool === "highlighter") return { color:hlColor, size:hlSize, alpha:0.35, composite:"source-over" };
+    if(isHighlighterFamily(activeTool)) return { color:hlColor, size:hlSize, alpha:0.35, composite:"source-over" };
     return { color:penColor, size:penSize, alpha:1, composite:"source-over" };
   }
 
@@ -1143,7 +1199,7 @@
     e.preventDefault();
     drawing = true;
     lastX = e.offsetX; lastY = e.offsetY;
-    if(activeTool === "highlighter"){
+    if(isHighlighterFamily(activeTool)){
       strokePoints = [{x:lastX, y:lastY}];
       preStrokeSnapshot = ctx.getImageData(0, 0, contentDraw.width, contentDraw.height);
     }
@@ -1153,7 +1209,7 @@
     if(panPointerId === e.pointerId){ continuePan(e); return; }
     if(!drawing) return;
     const style = currentStrokeStyle();
-    if(activeTool === "highlighter"){
+    if(isHighlighterFamily(activeTool)){
       // Redraw the whole accumulated path in one stroke() call each frame so
       // overlapping segments don't re-blend into darker "beads" — a single
       // stroke() paints its path as one shape, however much it self-overlaps.
@@ -1180,11 +1236,36 @@
     }
     lastX = e.offsetX; lastY = e.offsetY;
   });
+  // Turns a just-finished Nest Highlighter stroke into a nested note: creates
+  // the note, records a clickable zone over the stroke's bounding box on the
+  // parent, and jumps into the new note — mirroring how "Nest selection"
+  // immediately opens the note it just created from selected text. Ignores a
+  // stroke too small to have been a deliberate drag (an accidental tap).
+  function commitInkNest(points, sizeCss){
+    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+    points.forEach(p=>{
+      if(p.x<minX) minX=p.x; if(p.x>maxX) maxX=p.x;
+      if(p.y<minY) minY=p.y; if(p.y>maxY) maxY=p.y;
+    });
+    const pad = sizeCss/2;
+    const rect = { x:Math.max(0,minX-pad), y:Math.max(0,minY-pad), w:(maxX-minX)+pad*2, h:(maxY-minY)+pad*2 };
+    if(rect.w < 6 && rect.h < 6) return;
+    const parentNote = data.notes[currentNoteId];
+    const child = createNote({ parentId: currentNoteId, originLabel: "" });
+    parentNote.inkNests.push({ childId: child.id, x:rect.x, y:rect.y, w:rect.w, h:rect.h });
+    saveData();
+    renderInkNestZones(parentNote);
+    openNote(child.id);
+  }
+
   function endStroke(e){
     if(panPointerId === (e && e.pointerId)){ panPointerId = null; return; }
     if(!drawing) return;
     drawing = false;
     ctx.globalAlpha = 1;
+    if(activeTool === "nestHighlighter" && strokePoints.length > 1){
+      commitInkNest(strokePoints, currentStrokeStyle().size);
+    }
     strokePoints = [];
     preStrokeSnapshot = null;
     saveCurrentContent();
