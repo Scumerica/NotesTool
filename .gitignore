@@ -1,0 +1,4 @@
+.firebase/
+*.serviceaccount.json
+*-firebase-adminsdk-*.json
+firebase-debug.log
