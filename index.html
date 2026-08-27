@@ -458,6 +458,23 @@
   </div>
 </div>
 
+<!-- Custom Confirm Modal — replaces native confirm(), which some embedded/
+     sandboxed iframe contexts (e.g. certain site-builder embeds) silently
+     suppress. When that happens, confirm() effectively always returns false,
+     which made every delete button look broken with no visible error. -->
+<div class="modal-overlay" id="confirmModal" hidden>
+  <div class="modal-box" style="width:380px;">
+    <div class="modal-header">
+      <span>⚠️ Confirm</span>
+    </div>
+    <div id="confirmModalMessage" style="font-size:13.5px; color:var(--text); line-height:1.4;"></div>
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button class="btn-sm" id="confirmCancelBtn">Cancel</button>
+      <button class="btn-sm" id="confirmOkBtn" style="background:#e05b5b; border-color:#e05b5b; color:#fff;">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <!-- Ghost Companion -->
 <div class="ghost-float" id="ghostFloat" title="Drag me, or tap for a kind word">
   <div class="ghost-bubble" id="ghostBubble"></div>
@@ -763,6 +780,28 @@
   // chip in the parent (if any) so the phrase text survives, purges the note
   // + descendants, then navigates away if the user was looking at something
   // that just got deleted.
+  // Replaces window.confirm() app-wide: some embedded/sandboxed iframe
+  // contexts silently suppress native confirm(), which makes it resolve to
+  // false with no visible dialog — every delete button then looks broken,
+  // since deleteNoteFlow's `if(!confirm(msg)) return;` always took the
+  // cancel path. This modal has no such platform dependency.
+  let pendingConfirmCallback = null;
+  function showConfirm(message, onConfirm, okLabel){
+    pendingConfirmCallback = onConfirm;
+    el("confirmModalMessage").textContent = message;
+    el("confirmOkBtn").textContent = okLabel || "Confirm";
+    el("confirmModal").hidden = false;
+  }
+  function closeConfirmModal(result){
+    el("confirmModal").hidden = true;
+    const cb = pendingConfirmCallback;
+    pendingConfirmCallback = null;
+    if(result && cb) cb();
+  }
+  el("confirmCancelBtn").addEventListener("click", ()=>closeConfirmModal(false));
+  el("confirmOkBtn").addEventListener("click", ()=>closeConfirmModal(true));
+  el("confirmModal").addEventListener("click", (e)=>{ if(e.target === el("confirmModal")) closeConfirmModal(false); });
+
   function deleteNoteFlow(id){
     const note = data.notes[id];
     if(!note) return;
@@ -771,27 +810,27 @@
     const msg = hasChildren
       ? 'Delete "' + header + '" and everything nested inside it?'
       : 'Delete "' + header + '"?';
-    if(!confirm(msg)) return;
+    showConfirm(msg, ()=>{
+      const needsRedirect = currentNoteId && isDescendantOrSelf(currentNoteId, id);
+      const parentId = note.parentId;
 
-    const needsRedirect = currentNoteId && isDescendantOrSelf(currentNoteId, id);
-    const parentId = note.parentId;
-
-    if(parentId && data.notes[parentId]){
-      unwrapNotationInNote(data.notes[parentId], id);
-      removeInkNestFromParent(data.notes[parentId], id);
-    }
-    deleteNoteCompletely(id);
-
-    if(needsRedirect){
       if(parentId && data.notes[parentId]){
-        openNote(parentId);
-      } else {
-        renderLibrary();
+        unwrapNotationInNote(data.notes[parentId], id);
+        removeInkNestFromParent(data.notes[parentId], id);
       }
-    } else {
-      if(!libraryEl.hidden) renderLibrary();
-      if(!outlinePanel.hidden) renderOutline();
-    }
+      deleteNoteCompletely(id);
+
+      if(needsRedirect){
+        if(parentId && data.notes[parentId]){
+          openNote(parentId);
+        } else {
+          renderLibrary();
+        }
+      } else {
+        if(!libraryEl.hidden) renderLibrary();
+        if(!outlinePanel.hidden) renderOutline();
+      }
+    }, "Delete");
   }
 
   el("newRootBtn").addEventListener("click", ()=>{
@@ -1305,9 +1344,10 @@
   });
 
   el("clearCanvasBtn").addEventListener("click", ()=>{
-    if(!confirm("Clear all ink on this note? Typed text is not affected.")) return;
-    ctx.clearRect(0,0,contentDraw.width, contentDraw.height);
-    saveCurrentContent();
+    showConfirm("Clear all ink on this note? Typed text is not affected.", ()=>{
+      ctx.clearRect(0,0,contentDraw.width, contentDraw.height);
+      saveCurrentContent();
+    }, "Clear");
   });
 
   window.addEventListener("resize", ()=>{
