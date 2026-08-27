@@ -71,14 +71,20 @@
   #headerInput{ flex:1 1 220px; font-size:16px; font-weight:600; }
   #dateInput{ flex:0 0 150px; }
 
-  .toolbar{ display:flex; align-items:center; gap:10px; padding:8px 14px; background:var(--panel); border-bottom:1px solid var(--border); flex-wrap:wrap; }
-  .tool-select{ display:flex; gap:4px; background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:2px; }
-  .tool-select button{ border:none; background:transparent; padding:6px 12px; min-height:32px; }
-  .tool-select button.active{ background:var(--accent2); color:#fff; border-radius:6px; }
-  #textTools, .draw-tools{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-  #textTools button, .draw-tools button{ padding:6px 10px; min-height:36px; }
-  #textTools button[data-cmd]{ font-weight:700; width:36px; padding:0; }
+  .toolbar{ display:flex; align-items:flex-start; gap:14px; padding:8px 14px; background:var(--panel); border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .mode-switch{ display:flex; align-items:center; gap:8px; padding:6px 14px 6px 0; border-right:1px solid var(--border); }
+  .mode-switch-label{ font-size:13px; color:var(--muted); cursor:pointer; user-select:none; }
+  .mode-switch-label.active{ color:var(--text); font-weight:600; }
+  .tool-group{ display:flex; flex-direction:column; gap:6px; padding-top:4px; }
+  .tool-group-heading{ font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+  .tool-group-row{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .tool-group-row button{ padding:6px 10px; min-height:36px; }
+  .tool-group-row button[data-cmd]{ font-weight:700; width:36px; padding:0; }
+  .sub-tool-select{ display:flex; gap:4px; background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:2px; }
+  .sub-tool-select button{ border:none; background:transparent; padding:6px 10px; min-height:32px; }
+  .sub-tool-select button.active{ background:var(--accent2); color:#fff; border-radius:6px; }
   #nestBtn{ background:var(--accent2); border-color:var(--accent); color:#fff; }
+  #addNestedNoteBtn{ background:var(--panel2); }
   .swatch{ width:28px; height:28px; border-radius:50%; border:2px solid var(--border); cursor:pointer; padding:0; min-height:auto; }
   .swatch.active{ border-color:#fff; }
   .color-custom{ width:36px; height:36px; padding:2px; border-radius:8px; }
@@ -94,6 +100,7 @@
   #contentDraw{ position:absolute; top:0; left:0; touch-action:none; background:transparent; }
   .notation{
     background:rgba(255,216,115,.18); border-bottom:2px solid var(--notation); cursor:pointer; border-radius:2px;
+    user-select:none; -webkit-user-select:none; -webkit-user-drag:none;
   }
   .notation:hover{ background:rgba(255,216,115,.32); }
 
@@ -106,9 +113,12 @@
   #outlinePanel header{ display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-bottom:1px solid var(--border); }
   #outlinePanel header h2{ font-size:15px; margin:0; }
   #outlineList{ overflow:auto; padding:10px 8px; flex:1; }
-  .outline-item{ padding:7px 10px; border-radius:6px; cursor:pointer; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .outline-row{ display:flex; align-items:center; gap:2px; }
+  .outline-item{ flex:1 1 auto; min-width:0; padding:7px 10px; border-radius:6px; cursor:pointer; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .outline-item:hover{ background:var(--panel2); }
   .outline-item.current{ background:var(--accent2); color:#fff; }
+  .outline-del{ flex:0 0 auto; padding:4px 8px; min-height:auto; font-size:12px; opacity:.5; }
+  .outline-del:hover{ opacity:1; border-color:#e05b5b; color:#e05b5b; }
 
   /* Settings dropdown */
   #settingsWrap{ position:relative; }
@@ -284,6 +294,7 @@
   <div id="breadcrumb"></div>
   <div id="actions">
     <button id="outlineBtn" title="Show outline">📑 Outline</button>
+    <button id="deleteNoteBtn" title="Delete this note">🗑 Delete</button>
     <button id="homeBtn" title="Back to home">🏠 Home</button>
     <div id="settingsWrap">
       <button id="settingsBtn" title="Settings">⚙️ Settings</button>
@@ -332,49 +343,66 @@
     <input id="dateInput" type="date">
   </div>
   <div class="toolbar">
-    <div class="tool-select">
-      <button data-tool="text" class="active" title="Text cursor — click, select, and type">✍️ Text</button>
-      <button data-tool="pen" title="Pen — freehand ink">🖊️ Pen</button>
-      <button data-tool="highlighter" title="Highlighter — translucent ink, draw over anything">🖍️ Highlighter</button>
-      <button data-tool="eraser" title="Eraser — removes ink only">🧹 Eraser</button>
+    <div class="mode-switch">
+      <span class="mode-switch-label active" data-mode="text">✍️ Text</span>
+      <button class="toggle-switch" id="modeToggle" role="switch" aria-checked="false" title="Switch between Text and Pen">
+        <span class="toggle-knob"></span>
+      </button>
+      <span class="mode-switch-label" data-mode="pen">🖊️ Pen</span>
     </div>
-    <div id="textTools">
-      <button data-cmd="bold"><b>B</b></button>
-      <button data-cmd="italic"><i>I</i></button>
-      <button data-cmd="underline"><u>U</u></button>
-      <button id="highlightBtn" title="Highlight selected text">🖍️ Highlight text</button>
-      <button id="nestBtn" title="Attach a nested note to the selected text">🔗 Nest selection</button>
-    </div>
-    <div id="penToolOptions" class="draw-tools" hidden>
-      <button class="swatch active" data-color="#f2f2f2" style="background:#f2f2f2"></button>
-      <button class="swatch" data-color="#e05b5b" style="background:#e05b5b"></button>
-      <button class="swatch" data-color="#5b8cff" style="background:#5b8cff"></button>
-      <button class="swatch" data-color="#5bd68c" style="background:#5bd68c"></button>
-      <button class="swatch" data-color="#f2b84b" style="background:#f2b84b"></button>
-      <input type="color" class="color-custom" id="penColorCustom" value="#ffffff" title="Custom color">
-      <div class="size-wrap">
-        <input type="range" id="penSizeSlider" min="1" max="30" value="4" title="Pen size">
-        <span class="size-label" id="penSizeLabel">4px</span>
+
+    <div id="textToolsGroup" class="tool-group">
+      <div class="tool-group-heading">Text Tools</div>
+      <div class="tool-group-row">
+        <button data-cmd="bold"><b>B</b></button>
+        <button data-cmd="italic"><i>I</i></button>
+        <button data-cmd="underline"><u>U</u></button>
+        <button id="highlightBtn" title="Highlight selected text">🖍️ Highlight text</button>
+        <button id="nestBtn" title="Attach a nested note to the selected text">🔗 Nest selection</button>
+        <button id="addNestedNoteBtn" title="Add a nested note without selecting any text">📌 Add Nested Note</button>
       </div>
     </div>
-    <div id="highlighterToolOptions" class="draw-tools" hidden>
-      <button class="swatch active" data-color="#fff59d" style="background:#fff59d"></button>
-      <button class="swatch" data-color="#a5f2a5" style="background:#a5f2a5"></button>
-      <button class="swatch" data-color="#ffb3d1" style="background:#ffb3d1"></button>
-      <button class="swatch" data-color="#a9d4ff" style="background:#a9d4ff"></button>
-      <button class="swatch" data-color="#ffcf8f" style="background:#ffcf8f"></button>
-      <input type="color" class="color-custom" id="hlColorCustom" value="#fff59d" title="Custom color">
-      <div class="size-wrap">
-        <input type="range" id="hlSizeSlider" min="4" max="60" value="18" title="Highlighter size">
-        <span class="size-label" id="hlSizeLabel">18px</span>
+
+    <div id="penToolsGroup" class="tool-group" hidden>
+      <div class="tool-group-heading">Pen Tools</div>
+      <div class="tool-group-row">
+        <div class="sub-tool-select">
+          <button data-subtool="pen" class="active" title="Pen — freehand ink">🖊️ Pen</button>
+          <button data-subtool="highlighter" title="Highlighter — translucent ink, draw over anything">🖍️ Highlighter</button>
+          <button data-subtool="eraser" title="Eraser — removes ink only">🧹 Eraser</button>
+        </div>
       </div>
-    </div>
-    <div id="eraserToolOptions" class="draw-tools" hidden>
-      <div class="size-wrap">
-        <input type="range" id="eraserSizeSlider" min="4" max="80" value="20" title="Eraser size">
-        <span class="size-label" id="eraserSizeLabel">20px</span>
+      <div id="penToolOptions" class="tool-group-row" hidden>
+        <button class="swatch active" data-color="#f2f2f2" style="background:#f2f2f2"></button>
+        <button class="swatch" data-color="#e05b5b" style="background:#e05b5b"></button>
+        <button class="swatch" data-color="#5b8cff" style="background:#5b8cff"></button>
+        <button class="swatch" data-color="#5bd68c" style="background:#5bd68c"></button>
+        <button class="swatch" data-color="#f2b84b" style="background:#f2b84b"></button>
+        <input type="color" class="color-custom" id="penColorCustom" value="#ffffff" title="Custom color">
+        <div class="size-wrap">
+          <input type="range" id="penSizeSlider" min="1" max="30" value="4" title="Pen size">
+          <span class="size-label" id="penSizeLabel">4px</span>
+        </div>
       </div>
-      <button id="clearCanvasBtn" title="Clear all ink on this note">🗑️ Clear all ink</button>
+      <div id="highlighterToolOptions" class="tool-group-row" hidden>
+        <button class="swatch active" data-color="#fff59d" style="background:#fff59d"></button>
+        <button class="swatch" data-color="#a5f2a5" style="background:#a5f2a5"></button>
+        <button class="swatch" data-color="#ffb3d1" style="background:#ffb3d1"></button>
+        <button class="swatch" data-color="#a9d4ff" style="background:#a9d4ff"></button>
+        <button class="swatch" data-color="#ffcf8f" style="background:#ffcf8f"></button>
+        <input type="color" class="color-custom" id="hlColorCustom" value="#fff59d" title="Custom color">
+        <div class="size-wrap">
+          <input type="range" id="hlSizeSlider" min="4" max="60" value="18" title="Highlighter size">
+          <span class="size-label" id="hlSizeLabel">18px</span>
+        </div>
+      </div>
+      <div id="eraserToolOptions" class="tool-group-row" hidden>
+        <div class="size-wrap">
+          <input type="range" id="eraserSizeSlider" min="4" max="80" value="20" title="Eraser size">
+          <span class="size-label" id="eraserSizeLabel">20px</span>
+        </div>
+        <button id="clearCanvasBtn" title="Clear all ink on this note">🗑️ Clear all ink</button>
+      </div>
     </div>
   </div>
   <div id="contentWrap">
@@ -608,6 +636,7 @@
 
   // ---------- Library ----------
   function renderLibrary(){
+    currentNoteId = null;
     outlinePanel.hidden = true;
     noteViewEl.hidden = true;
     libraryEl.hidden = false;
@@ -640,12 +669,7 @@
         del.title = "Delete note and its nested notes";
         del.addEventListener("click", (e)=>{
           e.stopPropagation();
-          if(confirm('Delete "' + deriveHeader(note) + '" and everything nested inside it?')){
-            deleteNoteTree(id);
-            data.roots = data.roots.filter(r=>r!==id);
-            saveData();
-            renderLibrary();
-          }
+          deleteNoteFlow(id);
         });
         card.appendChild(h3);
         card.appendChild(sub);
@@ -666,6 +690,81 @@
     delete data.notes[id];
   }
 
+  // Detaches `id` from its parent's children array (or from data.roots if it
+  // has no parent) and purges it + all descendants from data.notes.
+  function deleteNoteCompletely(id){
+    const note = data.notes[id];
+    if(!note) return;
+    if(note.parentId && data.notes[note.parentId]){
+      data.notes[note.parentId].children = data.notes[note.parentId].children.filter(c=>c!==id);
+    } else {
+      data.roots = data.roots.filter(r=>r!==id);
+    }
+    deleteNoteTree(id);
+    saveData();
+  }
+
+  function isDescendantOrSelf(id, ancestorId){
+    let n = data.notes[id];
+    while(n){
+      if(n.id === ancestorId) return true;
+      n = n.parentId ? data.notes[n.parentId] : null;
+    }
+    return false;
+  }
+
+  // Removes the notation chip linking to `childId` from `parentNote`, keeping
+  // the underlying phrase as plain text — like erasing a highlighter mark
+  // without erasing the words underneath it. If parentNote is the note
+  // currently open in the editor, the live DOM is updated too.
+  function unwrapNotationInNote(parentNote, childId){
+    if(!parentNote) return;
+    const tmp = document.createElement("div");
+    tmp.innerHTML = parentNote.html || "";
+    const span = tmp.querySelector('.notation[data-child-id="' + childId + '"]');
+    if(!span) return;
+    span.replaceWith(document.createTextNode(span.textContent));
+    parentNote.html = tmp.innerHTML;
+    if(currentNoteId === parentNote.id){
+      setContentTypeHTML(parentNote.html);
+    }
+  }
+
+  // Shared delete flow for the outline panel, the in-note delete button, and
+  // the library's root-card delete button. Confirms, unwraps the notation
+  // chip in the parent (if any) so the phrase text survives, purges the note
+  // + descendants, then navigates away if the user was looking at something
+  // that just got deleted.
+  function deleteNoteFlow(id){
+    const note = data.notes[id];
+    if(!note) return;
+    const header = deriveHeader(note);
+    const hasChildren = (note.children||[]).length > 0;
+    const msg = hasChildren
+      ? 'Delete "' + header + '" and everything nested inside it?'
+      : 'Delete "' + header + '"?';
+    if(!confirm(msg)) return;
+
+    const needsRedirect = currentNoteId && isDescendantOrSelf(currentNoteId, id);
+    const parentId = note.parentId;
+
+    if(parentId && data.notes[parentId]){
+      unwrapNotationInNote(data.notes[parentId], id);
+    }
+    deleteNoteCompletely(id);
+
+    if(needsRedirect){
+      if(parentId && data.notes[parentId]){
+        openNote(parentId);
+      } else {
+        renderLibrary();
+      }
+    } else {
+      if(!libraryEl.hidden) renderLibrary();
+      if(!outlinePanel.hidden) renderOutline();
+    }
+  }
+
   el("newRootBtn").addEventListener("click", ()=>{
     const note = createNote({});
     openNote(note.id);
@@ -673,6 +772,10 @@
   el("homeBtn").addEventListener("click", ()=>{
     if(currentNoteId) saveCurrentContent();
     renderLibrary();
+  });
+  el("deleteNoteBtn").addEventListener("click", ()=>{
+    if(!currentNoteId){ alert("Open a note first to delete it."); return; }
+    deleteNoteFlow(currentNoteId);
   });
 
   // ---------- Note view ----------
@@ -688,11 +791,20 @@
     headerInput.placeholder = "Untitled — leave blank to auto-generate (" + deriveHeader(note) + ")";
     dateInput.value = note.date || todayStr();
 
-    contentType.innerHTML = note.html || "";
+    setContentTypeHTML(note.html || "");
     loadCanvasForNote(note);
     setTool(note.tool || "text", true);
 
     renderBreadcrumb(id);
+  }
+
+  // Programmatic rewrites of contentType's whole innerHTML (navigating between
+  // notes, unwrapping a notation elsewhere) must not be mistaken by
+  // notationObserver for the user deleting a chip — pause it around them.
+  function setContentTypeHTML(html){
+    notationObserver.disconnect();
+    contentType.innerHTML = html;
+    notationObserver.observe(contentType, { childList:true, subtree:true });
   }
 
   function saveCurrentContent(){
@@ -751,30 +863,54 @@
   // ---------- Tool switching ----------
   // Text/Pen/Highlighter/Eraser all act on the same note area — ink and
   // typed text stay visible together at all times. The tool only decides
-  // which layer receives the next pointer/keyboard input.
+  // which layer receives the next pointer/keyboard input. Pen/Highlighter/
+  // Eraser are grouped as "Pen Tools" under one base; picking any of them
+  // (or the Pen side of the toggle) always lands on a real pen sub-tool.
+  function toolBase(tool){ return tool === "text" ? "text" : "pen"; }
+  let lastPenSubtool = "pen";
+
   function setTool(tool, isInitialLoad){
     activeTool = tool;
-    document.querySelectorAll(".tool-select button").forEach(b=>{
-      b.classList.toggle("active", b.dataset.tool === tool);
+    const base = toolBase(tool);
+    if(base === "pen") lastPenSubtool = tool;
+
+    el("modeToggle").classList.toggle("on", base === "pen");
+    el("modeToggle").setAttribute("aria-checked", base === "pen");
+    document.querySelectorAll(".mode-switch-label").forEach(l=>{
+      l.classList.toggle("active", l.dataset.mode === base);
     });
-    el("textTools").hidden = tool !== "text";
+
+    el("textToolsGroup").hidden = base !== "text";
+    el("penToolsGroup").hidden = base !== "pen";
+
+    document.querySelectorAll(".sub-tool-select button").forEach(b=>{
+      b.classList.toggle("active", b.dataset.subtool === tool);
+    });
     el("penToolOptions").hidden = tool !== "pen";
     el("highlighterToolOptions").hidden = tool !== "highlighter";
     el("eraserToolOptions").hidden = tool !== "eraser";
 
-    const textActive = tool === "text";
+    const textActive = base === "text";
     contentType.style.pointerEvents = textActive ? "auto" : "none";
     contentDraw.style.pointerEvents = textActive ? "none" : "auto";
 
     if(!isInitialLoad) saveCurrentContent();
   }
 
-  document.querySelectorAll(".tool-select button").forEach(btn=>{
-    btn.addEventListener("click", ()=>setTool(btn.dataset.tool));
+  document.querySelectorAll(".sub-tool-select button").forEach(btn=>{
+    btn.addEventListener("click", ()=>setTool(btn.dataset.subtool));
+  });
+  el("modeToggle").addEventListener("click", ()=>{
+    setTool(toolBase(activeTool) === "pen" ? "text" : lastPenSubtool);
+  });
+  document.querySelectorAll(".mode-switch-label").forEach(label=>{
+    label.addEventListener("click", ()=>{
+      setTool(label.dataset.mode === "pen" ? lastPenSubtool : "text");
+    });
   });
 
   // ---------- Type tools ----------
-  document.querySelectorAll("#textTools button[data-cmd]").forEach(btn=>{
+  document.querySelectorAll("#textToolsGroup button[data-cmd]").forEach(btn=>{
     btn.addEventListener("mousedown", (e)=>e.preventDefault());
     btn.addEventListener("click", ()=>{
       document.execCommand(btn.dataset.cmd, false, null);
@@ -789,6 +925,48 @@
     saveCurrentContent();
   });
 
+  // Notation chips are atomic (contenteditable=false): the caret can never
+  // land inside one, so typing next to it always lands in the surrounding
+  // text instead of bleeding into the chip, and Backspace/Delete removes the
+  // whole chip as one unit rather than eating it character by character.
+  function makeNotationSpan(childId, label){
+    const span = document.createElement("span");
+    span.className = "notation";
+    span.contentEditable = "false";
+    span.dataset.childId = childId;
+    span.title = "Open nested note";
+    span.textContent = label;
+    return span;
+  }
+
+  // Inserts an atomic chip at `range` (replacing any selected text with it)
+  // and leaves the caret in a real text node right after the chip, so
+  // whatever's typed next definitely lands outside it.
+  function insertNotationChip(range, span){
+    range.deleteContents();
+    range.insertNode(span);
+    const landing = document.createTextNode("​");
+    span.after(landing);
+    const sel = window.getSelection();
+    const newRange = document.createRange();
+    newRange.setStart(landing, 1);
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+  }
+
+  function getInsertionRange(){
+    const sel = window.getSelection();
+    if(sel.rangeCount){
+      const r = sel.getRangeAt(0);
+      if(contentType.contains(r.commonAncestorContainer)) return r.cloneRange();
+    }
+    const r = document.createRange();
+    r.selectNodeContents(contentType);
+    r.collapse(false);
+    return r;
+  }
+
   el("nestBtn").addEventListener("click", ()=>{
     const sel = window.getSelection();
     if(!sel.rangeCount || sel.isCollapsed){
@@ -802,27 +980,22 @@
     }
     const label = range.toString();
     const child = createNote({ parentId: currentNoteId, originLabel: label });
-    data.notes[currentNoteId].children.push.length; // no-op guard
-    const span = document.createElement("span");
-    span.className = "notation";
-    span.dataset.childId = child.id;
-    span.title = "Open nested note";
-    try{
-      range.surroundContents(span);
-    }catch(e){
-      const frag = range.extractContents();
-      span.appendChild(frag);
-      range.insertNode(span);
-    }
-    sel.removeAllRanges();
+    const span = makeNotationSpan(child.id, label);
+    insertNotationChip(range, span);
     saveCurrentContent();
     openNote(child.id);
   });
 
-  contentType.addEventListener("mousedown", (e)=>{
-    const span = e.target.closest(".notation");
-    if(span) e.preventDefault();
+  el("addNestedNoteBtn").addEventListener("click", ()=>{
+    if(!currentNoteId) return;
+    const range = getInsertionRange();
+    const child = createNote({ parentId: currentNoteId, originLabel: "" });
+    const span = makeNotationSpan(child.id, "📌 Nested note");
+    insertNotationChip(range, span);
+    saveCurrentContent();
+    openNote(child.id);
   });
+
   contentType.addEventListener("click", (e)=>{
     const span = e.target.closest(".notation");
     if(span){
@@ -830,6 +1003,32 @@
       openNote(span.dataset.childId);
     }
   });
+
+  // If the user deletes a chip directly (Backspace/Delete/cut/select-all-
+  // delete), the DOM edit already happened — just bring the data model in
+  // line by purging the note(s) it pointed to. Guarded against firing on our
+  // own programmatic rewrites via setContentTypeHTML's disconnect/observe.
+  const notationObserver = new MutationObserver((mutations)=>{
+    const removedIds = [];
+    mutations.forEach(m=>{
+      m.removedNodes.forEach(node=>{
+        if(node.nodeType !== 1) return;
+        if(node.classList && node.classList.contains("notation") && node.dataset.childId){
+          removedIds.push(node.dataset.childId);
+        }
+        if(node.querySelectorAll){
+          node.querySelectorAll(".notation").forEach(n=>{ if(n.dataset.childId) removedIds.push(n.dataset.childId); });
+        }
+      });
+    });
+    if(!removedIds.length) return;
+    let changed = false;
+    removedIds.forEach(id=>{
+      if(data.notes[id]){ deleteNoteCompletely(id); changed = true; }
+    });
+    if(changed && !outlinePanel.hidden) renderOutline();
+  });
+  notationObserver.observe(contentType, { childList:true, subtree:true });
 
   // ---------- Ink layer ----------
   // The canvas always covers the note's full scrollable height (not just the
@@ -1055,6 +1254,9 @@
     outlineList.innerHTML = "";
     if(!root) return;
     (function walk(note, depth){
+      const row = document.createElement("div");
+      row.className = "outline-row";
+
       const item = document.createElement("div");
       item.className = "outline-item" + (note.id === currentNoteId ? " current" : "");
       item.style.paddingLeft = (10 + depth*16) + "px";
@@ -1068,7 +1270,19 @@
       item.addEventListener("keydown", (e)=>{
         if(e.key === "Enter" || e.key === " "){ e.preventDefault(); openNote(note.id); renderOutline(); }
       });
-      outlineList.appendChild(item);
+
+      const del = document.createElement("button");
+      del.className = "outline-del";
+      del.textContent = "🗑";
+      del.title = "Delete this note";
+      del.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        deleteNoteFlow(note.id);
+      });
+
+      row.appendChild(item);
+      row.appendChild(del);
+      outlineList.appendChild(row);
       (note.children||[]).forEach(cid=>{
         const child = data.notes[cid];
         if(child) walk(child, depth+1);
