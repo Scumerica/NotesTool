@@ -32,6 +32,17 @@ service cloud.firestore {
       return amOwner() || myRole() == 'admin';
     }
 
+    // ---------- Other apps on this same Firebase project — untouched ----------
+    // Publishing rules REPLACES the whole ruleset, not merges it, so these
+    // have to stay here or Mining Sim and CTMWBC's cloud save break the
+    // moment this file is published. Unchanged from what's live today.
+    match /saves/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /ctmwbc_saves/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // ---------- users/{uid} — one profile document per account ----------
     match /users/{uid} {
       // Anyone signed in can read their own profile; owner/admin can read

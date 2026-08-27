@@ -6,7 +6,15 @@ The role system's actual security lives in `firestore.rules`, not in the
 app's JavaScript. That file has been written but **not deployed** — the
 client-side checks in the app degrade gracefully without it (falls back to
 role "user", admin panel shows a clear error) but nothing is actually
-enforced until it's published:
+enforced until it's published.
+
+**This Firebase project is shared with Mining Sim and CTMWBC.** Publishing
+rules *replaces* the whole ruleset, not merges it — `firestore.rules` in
+this repo includes their existing `saves/{userId}` and
+`ctmwbc_saves/{userId}` rules unchanged specifically so publishing it
+doesn't break those apps' cloud save. If you ever hand-edit rules directly
+in the console instead of pasting this file, make sure those two blocks are
+still in there before you publish.
 
 1. Go to the [Firebase Console](https://console.firebase.google.com/) → project `scumericas-mining-sim`
 2. Firestore Database → **Rules** tab
