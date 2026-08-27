@@ -1,12 +1,13 @@
 # Roles & permissions — what's here and what isn't
 
-## Required setup step (not done yet)
+## Setup status: deployed and verified (2026-08-27)
 
-The role system's actual security lives in `firestore.rules`, not in the
-app's JavaScript. That file has been written but **not deployed** — the
-client-side checks in the app degrade gracefully without it (falls back to
-role "user", admin panel shows a clear error) but nothing is actually
-enforced until it's published.
+`firestore.rules` is published. Verified directly against live Firestore:
+profile auto-creation on first login, role storage, and real enforcement —
+a plain "user" account was confirmed unable to list all users, self-promote
+to admin, self-unban, or create an invite (all correctly rejected with
+`permission-denied`). `notes_saves`, `saves`, and `ctmwbc_saves` self-access
+all still work, so Mining Sim and CTMWBC are unaffected.
 
 **This Firebase project is shared with Mining Sim and CTMWBC.** Publishing
 rules *replaces* the whole ruleset, not merges it — `firestore.rules` in
@@ -15,6 +16,12 @@ this repo includes their existing `saves/{userId}` and
 doesn't break those apps' cloud save. If you ever hand-edit rules directly
 in the console instead of pasting this file, make sure those two blocks are
 still in there before you publish.
+
+What hasn't been verified yet (needs the real owner account, which I don't
+have credentials for): signing in as miss.scumerica@gmail.com and
+confirming the Manage Users panel actually lists every account, role
+changes/bans take effect for other users, and the owner-only invite flow
+works end to end.
 
 1. Go to the [Firebase Console](https://console.firebase.google.com/) → project `scumericas-mining-sim`
 2. Firestore Database → **Rules** tab
