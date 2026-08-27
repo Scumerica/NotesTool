@@ -37,6 +37,16 @@
     font:inherit; background:var(--panel2); color:var(--text); border:1px solid var(--border);
     border-radius:8px; padding:8px 10px; min-height:40px;
   }
+  select{
+    font:inherit; background:var(--panel2); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:8px 10px; min-height:40px;
+  }
+  .user-row{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px; background:var(--panel2);
+    border:1px solid var(--border); border-radius:8px; font-size:13px;
+  }
+  .user-row .u-email{ flex:1 1 160px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .user-row .u-banned{ color:#e05b5b; font-size:11px; font-weight:700; }
   #topbar{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
     padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--border);
@@ -302,6 +312,14 @@
   </div>
 </div>
 
+<div id="banned-overlay" style="display:none; position:fixed; inset:0; background:rgba(15,17,21,0.97); z-index:100000; align-items:center; justify-content:center;">
+  <div style="background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:30px 35px; width:320px; text-align:center;">
+    <h2 style="color:var(--text); margin:0 0 12px; font-size:20px;">🚫 Access Restricted</h2>
+    <p style="color:var(--muted); font-size:14px; line-height:1.5; margin:0 0 20px;">Your account has been restricted from using this tool. If you think this is a mistake, contact the owner.</p>
+    <button id="banned-logout-btn" style="width:100%; padding:10px; border-radius:8px; background:var(--panel2); border:1px solid var(--border); color:var(--text); font-size:14px; cursor:pointer;">Log Out</button>
+  </div>
+</div>
+
 <div id="topbar">
   <div id="breadcrumb"></div>
   <div id="actions">
@@ -329,6 +347,26 @@
             <span>Install this as an app icon on your iPad or iPhone.</span>
           </div>
           <button class="btn-sm" id="addHomeScreenBtn">How to add</button>
+        </div>
+        <div class="settings-row" id="roleRow" hidden>
+          <div class="settings-row-text">
+            <strong>Your role</strong>
+            <span id="roleText"></span>
+          </div>
+        </div>
+        <div class="settings-row" id="resetPwRow" hidden>
+          <div class="settings-row-text">
+            <strong>Reset a user's password</strong>
+            <span>Sends that account a password reset email.</span>
+          </div>
+          <button class="btn-sm" id="resetPwBtn">Send reset email</button>
+        </div>
+        <div class="settings-row" id="manageUsersRow" hidden>
+          <div class="settings-row-text">
+            <strong>Manage Users</strong>
+            <span>Roles, bans, and (owner only) invites.</span>
+          </div>
+          <button class="btn-sm" id="manageUsersBtn">Open</button>
         </div>
         <div class="settings-row" id="logoutRow" hidden>
           <div class="settings-row-text">
@@ -475,6 +513,60 @@
   </div>
 </div>
 
+<!-- Send Password Reset Modal -->
+<div class="modal-overlay" id="resetPwModal" hidden>
+  <div class="modal-box" style="width:360px;">
+    <div class="modal-header">
+      <span>🔑 Send Password Reset</span>
+      <button id="closeResetPwBtn">✕</button>
+    </div>
+    <input type="email" id="resetPwEmailInput" placeholder="user@example.com">
+    <div id="resetPwStatus" class="modal-sub"></div>
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button class="btn-sm" id="resetPwCancelBtn">Cancel</button>
+      <button class="btn-sm" id="resetPwSendBtn" style="background:var(--accent2); border-color:var(--accent); color:#fff;">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage Users Modal (Owner / Admin) -->
+<div class="modal-overlay" id="userAdminModal" hidden>
+  <div class="modal-box" style="width:640px; max-width:96vw;">
+    <div class="modal-header">
+      <span>👥 Manage Users</span>
+      <button id="closeUserAdminBtn">✕</button>
+    </div>
+    <div id="userAdminInvite" hidden>
+      <div class="modal-sub" style="margin-bottom:6px;">Invite by email — they get this role automatically the first time they sign up with this email (owner only; this does not send them anything itself, just pre-assigns the role).</div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <input type="email" id="inviteEmailInput" placeholder="email@example.com" style="flex:1 1 200px;">
+        <select id="inviteRoleSelect" style="flex:0 0 auto;">
+          <option value="admin">Admin</option>
+          <option value="userPlus">User+</option>
+          <option value="user" selected>User</option>
+          <option value="test">Test</option>
+        </select>
+        <button class="btn-sm" id="createInviteBtn">Invite</button>
+      </div>
+      <div id="inviteStatus" class="modal-sub" style="margin-top:4px;"></div>
+      <div style="border-top:1px solid var(--border); margin-top:10px; padding-top:10px;"></div>
+    </div>
+    <div id="userAdminStatus" class="modal-sub">Loading users…</div>
+    <div id="userAdminList" style="display:flex; flex-direction:column; gap:8px; max-height:50vh; overflow:auto;"></div>
+  </div>
+</div>
+
+<!-- View a user's notes (read-only, owner/admin) -->
+<div class="modal-overlay" id="viewNotesModal" hidden>
+  <div class="modal-box" style="width:420px;">
+    <div class="modal-header">
+      <span id="viewNotesTitle">📄 Notes</span>
+      <button id="closeViewNotesBtn">✕</button>
+    </div>
+    <div id="viewNotesList" style="display:flex; flex-direction:column; gap:4px; max-height:50vh; overflow:auto; font-size:13px;"></div>
+  </div>
+</div>
+
 <!-- Ghost Companion -->
 <div class="ghost-float" id="ghostFloat" title="Drag me, or tap for a kind word">
   <div class="ghost-bubble" id="ghostBubble"></div>
@@ -504,6 +596,42 @@
 
   let currentUser = null, cloudSaveData = null, authResolved = false, saveDirty = false;
 
+  // --- Roles ---
+  // Real enforcement lives in firestore.rules, not here — anything checked
+  // only in this JS can be bypassed via dev tools. This client-side state
+  // just drives which UI is shown; Firestore itself rejects unauthorized
+  // reads/writes regardless of what the UI does or doesn't hide.
+  const ROLE_LABELS = { owner:'Owner', admin:'Admin', userPlus:'User+', user:'User', test:'Test' };
+  let myRole = 'none', myBanned = false;
+
+  async function ensureUserProfile(user){
+    const ref = db.collection('users').doc(user.uid);
+    try{
+      const snap = await ref.get();
+      if(snap.exists){
+        const d = snap.data();
+        myRole = d.role || 'user';
+        myBanned = !!d.banned;
+        return;
+      }
+      let role = 'user';
+      if(user.email === 'miss.scumerica@gmail.com'){
+        role = 'owner';
+      } else {
+        try{
+          const inviteSnap = await db.collection('invites').doc(user.email).get();
+          if(inviteSnap.exists) role = inviteSnap.data().role;
+        }catch(e){}
+      }
+      await ref.set({ email:user.email, role, banned:false, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      myRole = role;
+      myBanned = false;
+    }catch(e){
+      console.error('Could not load/create user profile (is firestore.rules published?):', e);
+      myRole = 'user'; myBanned = false;
+    }
+  }
+
   async function pushCloudSave(dataToSave) {
     if (!currentUser) return;
     try {
@@ -518,8 +646,13 @@
   function hideAuthOverlay() { document.getElementById('auth-overlay').style.display = 'none'; }
   function setAuthError(msg, success) { const el = document.getElementById('auth-error'); el.textContent = msg || ''; el.classList.toggle('success', !!success); }
 
-  function finishAuth() {
+  async function finishAuth() {
     authResolved = true;
+    if(currentUser){
+      await ensureUserProfile(currentUser);
+    } else {
+      myRole = 'none'; myBanned = false;
+    }
     hideAuthOverlay();
     bootApp();
   }
@@ -564,7 +697,10 @@
 
   document.getElementById('auth-guest-btn').addEventListener('click', () => {
     currentUser = null; cloudSaveData = null;
-    finishAuth();
+    // Sign out of any persisted session too, or "local only" wouldn't stick —
+    // the next reload would silently auto-restore the cloud session instead
+    // of respecting this choice.
+    if (auth.currentUser) { auth.signOut().finally(finishAuth); } else { finishAuth(); }
   });
 
   auth.onAuthStateChanged(async (user) => {
@@ -585,6 +721,9 @@
   setInterval(() => { if (currentUser && saveDirty) { saveDirty = false; pushCloudSave(data); } }, 20000);
 
   document.getElementById('logoutBtn').addEventListener('click', () => {
+    auth.signOut().finally(() => location.reload());
+  });
+  document.getElementById('banned-logout-btn').addEventListener('click', () => {
     auth.signOut().finally(() => location.reload());
   });
 
@@ -1730,9 +1869,175 @@
     const logoutRow = el("logoutRow"), emailText = el("accountEmailText");
     if (logoutRow) logoutRow.hidden = !currentUser;
     if (emailText) emailText.textContent = currentUser ? currentUser.email : '';
+    applyRoleUI();
+    if (myBanned) el("banned-overlay").style.display = "flex";
     applySettingsUI();
     renderLibrary();
   }
+
+  // ---------- Role-gated settings UI ----------
+  function applyRoleUI(){
+    const known = !!currentUser && myRole !== 'none';
+    el("roleRow").hidden = !known;
+    if(known) el("roleText").textContent = ROLE_LABELS[myRole] || myRole;
+    const isPrivileged = known && (myRole === 'owner' || myRole === 'admin' || myRole === 'userPlus');
+    const isAdminOrOwner = known && (myRole === 'owner' || myRole === 'admin');
+    el("resetPwRow").hidden = !isPrivileged;
+    el("manageUsersRow").hidden = !isAdminOrOwner;
+  }
+
+  // ---------- Reset a user's password (owner/admin/user+) ----------
+  el("resetPwBtn").addEventListener("click", ()=>{
+    settingsPanel.hidden = true;
+    el("resetPwEmailInput").value = "";
+    el("resetPwStatus").textContent = "";
+    el("resetPwModal").hidden = false;
+  });
+  el("closeResetPwBtn").addEventListener("click", ()=>{ el("resetPwModal").hidden = true; });
+  el("resetPwCancelBtn").addEventListener("click", ()=>{ el("resetPwModal").hidden = true; });
+  el("resetPwModal").addEventListener("click", (e)=>{ if(e.target === el("resetPwModal")) el("resetPwModal").hidden = true; });
+  el("resetPwSendBtn").addEventListener("click", async ()=>{
+    const email = el("resetPwEmailInput").value.trim();
+    const status = el("resetPwStatus");
+    if(!email){ status.textContent = "Enter an email address."; return; }
+    status.textContent = "Sending…";
+    try{
+      await auth.sendPasswordResetEmail(email);
+      status.textContent = "Reset email sent to " + email + ".";
+    }catch(e){
+      status.textContent = e.message;
+    }
+  });
+
+  // ---------- Manage Users (owner/admin) ----------
+  el("manageUsersBtn").addEventListener("click", ()=>{
+    settingsPanel.hidden = true;
+    el("userAdminInvite").hidden = (myRole !== 'owner');
+    el("userAdminModal").hidden = false;
+    loadAndRenderUserAdmin();
+  });
+  el("closeUserAdminBtn").addEventListener("click", ()=>{ el("userAdminModal").hidden = true; });
+  el("userAdminModal").addEventListener("click", (e)=>{ if(e.target === el("userAdminModal")) el("userAdminModal").hidden = true; });
+
+  async function loadAndRenderUserAdmin(){
+    const status = el("userAdminStatus");
+    const list = el("userAdminList");
+    status.textContent = "Loading users…";
+    list.innerHTML = "";
+    try{
+      const snap = await db.collection('users').get();
+      status.textContent = snap.size + " user" + (snap.size===1?"":"s");
+      snap.forEach(doc=>{
+        const u = doc.data();
+        const uid = doc.id;
+        const isOwnerRow = u.role === 'owner';
+        const canEditRole = myRole === 'owner' ? !isOwnerRow : (myRole === 'admin' && !isOwnerRow);
+
+        const row = document.createElement("div");
+        row.className = "user-row";
+
+        const emailSpan = document.createElement("span");
+        emailSpan.className = "u-email";
+        emailSpan.textContent = u.email || uid;
+        row.appendChild(emailSpan);
+
+        if(u.banned){
+          const b = document.createElement("span");
+          b.className = "u-banned";
+          b.textContent = "BANNED";
+          row.appendChild(b);
+        }
+
+        const roleSelect = document.createElement("select");
+        ['owner','admin','userPlus','user','test'].forEach(r=>{
+          if(r === 'owner' && myRole !== 'owner') return;
+          const opt = document.createElement("option");
+          opt.value = r; opt.textContent = ROLE_LABELS[r];
+          if(r === u.role) opt.selected = true;
+          roleSelect.appendChild(opt);
+        });
+        roleSelect.disabled = !canEditRole;
+        roleSelect.addEventListener("change", ()=>updateUserRole(uid, roleSelect.value));
+        row.appendChild(roleSelect);
+
+        if(!isOwnerRow){
+          const banBtn = document.createElement("button");
+          banBtn.className = "btn-sm";
+          banBtn.textContent = u.banned ? "Unban" : "Ban";
+          banBtn.addEventListener("click", ()=>updateUserBanned(uid, !u.banned));
+          row.appendChild(banBtn);
+        }
+
+        const viewBtn = document.createElement("button");
+        viewBtn.className = "btn-sm";
+        viewBtn.textContent = "View notes";
+        viewBtn.addEventListener("click", ()=>viewUserNotes(uid, u.email));
+        row.appendChild(viewBtn);
+
+        list.appendChild(row);
+      });
+    }catch(e){
+      status.textContent = "Could not load users — " + e.message + " (make sure firestore.rules is published)";
+    }
+  }
+
+  async function updateUserRole(uid, role){
+    try{ await db.collection('users').doc(uid).update({role}); }
+    catch(e){ el("userAdminStatus").textContent = "Could not update role: " + e.message; }
+    loadAndRenderUserAdmin();
+  }
+  async function updateUserBanned(uid, banned){
+    try{ await db.collection('users').doc(uid).update({banned}); }
+    catch(e){ el("userAdminStatus").textContent = "Could not update ban status: " + e.message; }
+    loadAndRenderUserAdmin();
+  }
+
+  el("createInviteBtn").addEventListener("click", async ()=>{
+    const email = el("inviteEmailInput").value.trim();
+    const role = el("inviteRoleSelect").value;
+    const status = el("inviteStatus");
+    if(!email){ status.textContent = "Enter an email address."; return; }
+    status.textContent = "Creating invite…";
+    try{
+      await db.collection('invites').doc(email).set({
+        role, invitedBy: currentUser.email, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      status.textContent = "Invite created — " + email + " becomes " + ROLE_LABELS[role] + " on signup.";
+      el("inviteEmailInput").value = "";
+    }catch(e){
+      status.textContent = "Could not create invite: " + e.message;
+    }
+  });
+
+  // ---------- View a user's notes, read-only (owner/admin) ----------
+  async function viewUserNotes(uid, email){
+    el("viewNotesTitle").textContent = "📄 " + (email || uid) + "'s notes";
+    const list = el("viewNotesList");
+    list.textContent = "Loading…";
+    el("viewNotesModal").hidden = false;
+    try{
+      const snap = await db.collection('notes_saves').doc(uid).get();
+      if(!snap.exists){ list.textContent = "No notes found for this account."; return; }
+      const theirData = (snap.data() || {}).data || { notes:{}, roots:[] };
+      if(!theirData.roots || !theirData.roots.length){ list.textContent = "No notes yet."; return; }
+      list.innerHTML = "";
+      const walk = (id, depth)=>{
+        const note = theirData.notes[id];
+        if(!note) return;
+        const row = document.createElement("div");
+        row.style.paddingLeft = (depth*16) + "px";
+        const label = (note.header && note.header.trim()) ? note.header.trim() : (note.originLabel || "Untitled Note");
+        row.textContent = (depth>0 ? "↳ " : "") + label;
+        list.appendChild(row);
+        (note.children||[]).forEach(cid=>walk(cid, depth+1));
+      };
+      theirData.roots.forEach(id=>walk(id, 0));
+    }catch(e){
+      list.textContent = "Could not load notes: " + e.message;
+    }
+  }
+  el("closeViewNotesBtn").addEventListener("click", ()=>{ el("viewNotesModal").hidden = true; });
+  el("viewNotesModal").addEventListener("click", (e)=>{ if(e.target === el("viewNotesModal")) el("viewNotesModal").hidden = true; });
 })();
 </script>
 </body>

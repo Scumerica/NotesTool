@@ -1,0 +1,100 @@
+rules_version = '2';
+
+// Deploy: Firebase Console → your project (scumericas-mining-sim) →
+// Firestore Database → Rules tab → replace the contents with this file →
+// Publish. These rules are the ONLY real enforcement of the role system —
+// anything checked only in the app's JavaScript can be bypassed by anyone
+// who opens their browser's dev tools, so every privileged action below is
+// re-checked here regardless of what the client already filtered in the UI.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function myProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function myRole() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? myProfile().role
+        : 'none';
+    }
+
+    function amOwner() {
+      return isSignedIn() && request.auth.token.email == 'miss.scumerica@gmail.com';
+    }
+
+    function amAdminOrOwner() {
+      return amOwner() || myRole() == 'admin';
+    }
+
+    // ---------- users/{uid} — one profile document per account ----------
+    match /users/{uid} {
+      // Anyone signed in can read their own profile; owner/admin can read
+      // any profile (needed for the user-management panel and note limits).
+      allow read: if isSignedIn() && (request.auth.uid == uid || amAdminOrOwner());
+
+      // A user may create ONLY their own profile document, and only with a
+      // role their own history actually earns them:
+      //  - the hardcoded owner email may create itself as 'owner'
+      //  - anyone with a matching pending invite may take that invite's role
+      //  - everyone else must start as plain 'user' — never self-assign
+      //    admin/userPlus/test by just writing it on signup.
+      allow create: if isSignedIn() && request.auth.uid == uid &&
+        request.resource.data.banned == false &&
+        (
+          (request.resource.data.role == 'owner' && amOwner()) ||
+          (
+            exists(/databases/$(database)/documents/invites/$(request.auth.token.email)) &&
+            request.resource.data.role ==
+              get(/databases/$(database)/documents/invites/$(request.auth.token.email)).data.role
+          ) ||
+          request.resource.data.role == 'user'
+        );
+
+      // Updates: a user may update their own non-privileged fields (e.g.
+      // future theme prefs) but never their own role/banned. Owner/admin may
+      // update anyone's role/banned, except: only the owner account can ever
+      // hold role 'owner', nobody but the owner may grant 'owner', and
+      // admins may not touch the owner's own document.
+      allow update: if isSignedIn() && (
+        (
+          request.auth.uid == uid &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.banned == resource.data.banned
+        ) ||
+        (
+          amAdminOrOwner() &&
+          resource.data.role != 'owner' &&
+          (request.resource.data.role != 'owner' || amOwner()) &&
+          (amOwner() || request.auth.uid != uid)
+        )
+      );
+
+      allow delete: if false; // no account deletion without a backend — see NOTES.md
+    }
+
+    // ---------- invites/{email} — pre-assigned role for a not-yet-signed-up email ----------
+    match /invites/{email} {
+      // Only the owner creates/removes invites (matches "creating new
+      // accounts" being an owner-only power in the spec).
+      allow read, write: if amOwner();
+      // The invited person needs to read their own pending invite at signup
+      // time, before their profile document (and thus admin status) exists.
+      allow read: if isSignedIn() && request.auth.token.email == email;
+    }
+
+    // ---------- notes_saves/{uid} — existing cloud-save blob, one per user ----------
+    match /notes_saves/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || amAdminOrOwner());
+      allow write: if isSignedIn() && (
+        (request.auth.uid == uid && myRole() != 'none' && !myProfile().banned) ||
+        amAdminOrOwner()
+      );
+    }
+  }
+}
