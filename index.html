@@ -11,6 +11,9 @@
 <meta name="apple-mobile-web-app-title" content="Notes">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/icon-192.png">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <style>
   :root{
     --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a;
@@ -236,9 +239,46 @@
   .a2hs-share-icon{ display:inline-flex; vertical-align:middle; margin:0 3px; }
 
   [hidden]{ display:none !important; }
+
+  #auth-overlay {
+    position: fixed; inset: 0; background: rgba(15,17,21,0.95); z-index: 99999;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #auth-box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 30px 35px; width: 300px; text-align: center; }
+  #auth-box h2 { color: var(--text); margin: 0 0 20px; font-size: 20px; }
+  #auth-loading { color: var(--muted); font-size: 14px; }
+  #auth-box input {
+    width: 100%; box-sizing: border-box; margin-bottom: 12px; padding: 10px;
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; font-family: inherit;
+  }
+  #auth-box button {
+    width: 100%; box-sizing: border-box; margin-bottom: 10px; padding: 10px; border-radius: 8px;
+    background: var(--accent2); border: 1px solid var(--accent); color: #fff; font-size: 14px; cursor: pointer; font-family: inherit;
+  }
+  #auth-box button:hover { filter: brightness(1.1); }
+  #auth-guest-btn { background: var(--panel2) !important; border-color: var(--border) !important; color: var(--text) !important; }
+  #auth-forgot { color: var(--accent); font-size: 12px; text-decoration: underline; cursor: pointer; margin: -6px 0 10px; text-align: right; }
+  #auth-error { color: #ff6b6b; font-size: 12px; min-height: 16px; margin-bottom: 8px; }
+  #auth-error.success { color: #6bdc8c; }
 </style>
 </head>
 <body>
+
+<div id="auth-overlay">
+  <div id="auth-box">
+    <h2>Nested Notes</h2>
+    <div id="auth-loading">Loading...</div>
+    <div id="auth-form" style="display:none;">
+      <input type="email" id="auth-email" placeholder="Email" autocomplete="username">
+      <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password">
+      <div id="auth-forgot">Forgot password?</div>
+      <div id="auth-error"></div>
+      <button id="auth-login-btn">Log In</button>
+      <button id="auth-signup-btn">Sign Up</button>
+      <button id="auth-guest-btn">Continue Locally (No Sync)</button>
+    </div>
+  </div>
+</div>
 
 <div id="topbar">
   <div id="breadcrumb"></div>
@@ -266,6 +306,13 @@
             <span>Install this as an app icon on your iPad or iPhone.</span>
           </div>
           <button class="btn-sm" id="addHomeScreenBtn">How to add</button>
+        </div>
+        <div class="settings-row" id="logoutRow" hidden>
+          <div class="settings-row-text">
+            <strong>Account</strong>
+            <span id="accountEmailText"></span>
+          </div>
+          <button class="btn-sm" id="logoutBtn">Log Out</button>
         </div>
       </div>
     </div>
@@ -378,6 +425,110 @@
 <script>
 (function(){
   "use strict";
+
+  // --- CLOUD SAVE (Firebase Auth + Firestore) ---
+  // Shared login across Mining Sim/CTMWBC/NotesTool: same Firebase project, and since all three
+  // are hosted under the same scumerica.github.io origin, Firebase's persisted session is
+  // automatically shared between them (browser storage is scoped by origin, not by path).
+  const firebaseConfig = {
+    apiKey: "AIzaSyC2HghWsh04zxzRs_cVAqFL3BLr2Je4VKU",
+    authDomain: "scumericas-mining-sim.firebaseapp.com",
+    projectId: "scumericas-mining-sim",
+    storageBucket: "scumericas-mining-sim.firebasestorage.app",
+    messagingSenderId: "715671434008",
+    appId: "1:715671434008:web:df54fec72f91dc0791246d",
+    measurementId: "G-9X103EFC39"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  let currentUser = null, cloudSaveData = null, authResolved = false, saveDirty = false;
+
+  async function pushCloudSave(dataToSave) {
+    if (!currentUser) return;
+    try {
+      await db.collection('notes_saves').doc(currentUser.uid).set(
+        { data: dataToSave, updatedAt: firebase.firestore.FieldValue.serverTimestamp() },
+        { merge: true }
+      );
+    } catch (e) { console.error('Cloud save failed:', e); }
+  }
+
+  function showAuthOverlay() { document.getElementById('auth-overlay').style.display = 'flex'; }
+  function hideAuthOverlay() { document.getElementById('auth-overlay').style.display = 'none'; }
+  function setAuthError(msg, success) { const el = document.getElementById('auth-error'); el.textContent = msg || ''; el.classList.toggle('success', !!success); }
+
+  function finishAuth() {
+    authResolved = true;
+    hideAuthOverlay();
+    bootApp();
+  }
+
+  document.getElementById('auth-login-btn').addEventListener('click', async () => {
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    setAuthError('');
+    if (!email || !password) { setAuthError('Enter an email and password.'); return; }
+    try {
+      const cred = await auth.signInWithEmailAndPassword(email, password);
+      currentUser = cred.user;
+      const doc = await db.collection('notes_saves').doc(currentUser.uid).get();
+      cloudSaveData = doc.exists ? doc.data() : null;
+      finishAuth();
+    } catch (e) { setAuthError(e.message); }
+  });
+
+  document.getElementById('auth-signup-btn').addEventListener('click', async () => {
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    setAuthError('');
+    if (!email || !password) { setAuthError('Enter an email and password.'); return; }
+    if (password.length < 6) { setAuthError('Password must be at least 6 characters.'); return; }
+    try {
+      const cred = await auth.createUserWithEmailAndPassword(email, password);
+      currentUser = cred.user;
+      // Migrate any existing local notes on this device to the new account
+      let localRaw = null; try { localRaw = localStorage.getItem('nestedNotesData.v1'); } catch (e) {}
+      const localData = localRaw ? JSON.parse(localRaw) : null;
+      if (localData) { cloudSaveData = { data: localData }; await pushCloudSave(localData); }
+      finishAuth();
+    } catch (e) { setAuthError(e.message); }
+  });
+
+  document.getElementById('auth-forgot').addEventListener('click', async () => {
+    const email = document.getElementById('auth-email').value.trim();
+    if (!email) { setAuthError('Enter your email above first, then click Forgot password.'); return; }
+    try { await auth.sendPasswordResetEmail(email); setAuthError('Password reset email sent — check your inbox.', true); }
+    catch (e) { setAuthError(e.message); }
+  });
+
+  document.getElementById('auth-guest-btn').addEventListener('click', () => {
+    currentUser = null; cloudSaveData = null;
+    finishAuth();
+  });
+
+  auth.onAuthStateChanged(async (user) => {
+    if (authResolved) return;
+    if (user) {
+      currentUser = user;
+      try {
+        const doc = await db.collection('notes_saves').doc(user.uid).get();
+        cloudSaveData = doc.exists ? doc.data() : null;
+      } catch (e) { cloudSaveData = null; }
+      finishAuth();
+    } else {
+      document.getElementById('auth-loading').style.display = 'none';
+      document.getElementById('auth-form').style.display = 'block';
+    }
+  });
+
+  setInterval(() => { if (currentUser && saveDirty) { saveDirty = false; pushCloudSave(data); } }, 20000);
+
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    auth.signOut().finally(() => location.reload());
+  });
+
   const STORAGE_KEY = "nestedNotesData.v1";
 
   function loadData(){
@@ -387,7 +538,7 @@
     }catch(e){}
     return { notes:{}, roots:[] };
   }
-  function saveData(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+  function saveData(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); saveDirty = true; }
 
   let data = loadData();
   let currentNoteId = null;
@@ -1238,8 +1389,15 @@
   el("a2hsModal").addEventListener("click", (e)=>{ if(e.target === el("a2hsModal")) closeA2hs(); });
 
   // ---------- Init ----------
-  applySettingsUI();
-  renderLibrary();
+  // Deferred until login/signup/guest choice resolves (see auth block above)
+  function bootApp() {
+    if (cloudSaveData && cloudSaveData.data) data = cloudSaveData.data;
+    const logoutRow = el("logoutRow"), emailText = el("accountEmailText");
+    if (logoutRow) logoutRow.hidden = !currentUser;
+    if (emailText) emailText.textContent = currentUser ? currentUser.email : '';
+    applySettingsUI();
+    renderLibrary();
+  }
 })();
 </script>
 </body>
