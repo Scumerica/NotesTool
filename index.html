@@ -95,9 +95,7 @@
   .sub-tool-select button.active{ background:var(--accent2); color:#fff; border-radius:6px; }
   #nestBtn{ background:var(--accent2); border-color:var(--accent); color:#fff; }
   #addNestedNoteBtn{ background:var(--panel2); }
-  .swatch{ width:28px; height:28px; border-radius:50%; border:2px solid var(--border); cursor:pointer; padding:0; min-height:auto; }
-  .swatch.active{ border-color:#fff; }
-  .color-custom{ width:36px; height:36px; padding:2px; border-radius:8px; }
+  .color-custom{ width:40px; height:36px; padding:2px; border-radius:8px; }
   .size-wrap{ display:flex; align-items:center; gap:6px; }
   .size-wrap input[type=range]{ width:100px; min-height:auto; padding:0; }
   .size-label{ font-size:12px; color:var(--muted); width:34px; text-align:right; }
@@ -270,6 +268,68 @@
   }
   .a2hs-share-icon{ display:inline-flex; vertical-align:middle; margin:0 3px; }
 
+  /* Pen toolbar: Draw + Shapes rounded boxes, shared colour/preset box */
+  .tool-box-row{ display:flex; gap:10px; flex-wrap:wrap; }
+  .tool-box{
+    display:flex; flex-direction:column; gap:6px;
+    background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:8px 10px;
+  }
+  .tool-box-heading{
+    font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);
+  }
+  .tool-box .sub-tool-select{ background:transparent; border:none; padding:0; gap:4px; flex-wrap:wrap; }
+  .tool-box--color{ min-width:240px; }
+  .color-controls{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .alpha-wrap{ display:flex; align-items:center; gap:6px; }
+  .alpha-wrap input[type=range]{ width:90px; min-height:auto; padding:0; }
+  .checker-bg{
+    background-image:
+      linear-gradient(45deg,#7a7a7a 25%,transparent 25%),
+      linear-gradient(-45deg,#7a7a7a 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,#7a7a7a 75%),
+      linear-gradient(-45deg,transparent 75%,#7a7a7a 75%);
+    background-size:10px 10px; background-position:0 0,0 5px,5px -5px,-5px 0;
+  }
+  .ink-preview{
+    width:32px; height:32px; border-radius:8px; border:1px solid var(--border); flex:0 0 auto;
+    background-image:
+      linear-gradient(45deg,#7a7a7a 25%,transparent 25%),
+      linear-gradient(-45deg,#7a7a7a 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,#7a7a7a 75%),
+      linear-gradient(-45deg,transparent 75%,#7a7a7a 75%);
+    background-size:10px 10px; background-position:0 0,0 5px,5px -5px,-5px 0;
+  }
+  .preset-row{ display:flex; gap:8px; flex-wrap:wrap; max-width:560px; }
+  .preset-row:empty::after{ content:"No saved colours yet — pick one and tap ＋ Save."; font-size:11px; color:var(--muted); }
+  .preset-swatch{
+    position:relative; width:30px; height:30px; min-height:auto; padding:0; flex:0 0 auto;
+    border:1px solid var(--border); border-radius:8px;
+    background-image:
+      linear-gradient(45deg,#7a7a7a 25%,transparent 25%),
+      linear-gradient(-45deg,#7a7a7a 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,#7a7a7a 75%),
+      linear-gradient(-45deg,transparent 75%,#7a7a7a 75%);
+    background-size:10px 10px; background-position:0 0,0 5px,5px -5px,-5px 0;
+  }
+  .preset-swatch:hover{ border-color:var(--accent); }
+  .preset-swatch.active{ outline:2px solid var(--accent); outline-offset:1px; border-color:#fff; }
+  .preset-x{
+    position:absolute; top:-7px; right:-7px; width:16px; height:16px; line-height:13px;
+    font-size:12px; text-align:center; border-radius:50%;
+    background:var(--panel); border:1px solid var(--border); color:var(--muted);
+  }
+  .preset-x:hover{ color:#e05b5b; border-color:#e05b5b; }
+  .fill-toggle{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); }
+  .fill-toggle input{ min-height:auto; }
+  .pen-hint{ font-size:11px; color:var(--muted); }
+
+  @media (max-width:640px){
+    .toolbar{ max-height:48vh; overflow-y:auto; gap:10px; }
+    .tool-box-row{ gap:8px; }
+    .tool-box{ flex:1 1 100%; }
+    .alpha-wrap input[type=range]{ width:130px; }
+  }
+
   [hidden]{ display:none !important; }
 
   #auth-overlay {
@@ -414,37 +474,58 @@
     </div>
 
     <div id="penToolsGroup" class="tool-group" hidden>
-      <div class="tool-group-heading">Pen Tools</div>
-      <div class="tool-group-row">
-        <div class="sub-tool-select">
-          <button data-subtool="pen" class="active" title="Pen — freehand ink">🖊️ Pen</button>
-          <button data-subtool="highlighter" title="Highlighter — translucent ink, draw over anything">🖍️ Highlighter</button>
-          <button data-subtool="nestHighlighter" title="Nest Highlighter — highlight an area to create a nested note">🔗 Nest Highlighter</button>
-          <button data-subtool="eraser" title="Eraser — removes ink only">🧹 Eraser</button>
+      <div class="tool-box-row">
+        <div class="tool-box">
+          <div class="tool-box-heading">Draw</div>
+          <div class="sub-tool-select">
+            <button data-subtool="pen" class="active" title="Pen — freehand ink">🖊️ Pen</button>
+            <button data-subtool="highlighter" title="Highlighter — translucent ink, draw over anything">🖍️ Highlighter</button>
+            <button data-subtool="nestHighlighter" title="Nest Highlighter — highlight an area to create a nested note">🔗 Nest</button>
+            <button data-subtool="eraser" title="Eraser — removes ink only">🧹 Eraser</button>
+          </div>
+        </div>
+        <div class="tool-box">
+          <div class="tool-box-heading">Shapes</div>
+          <div class="sub-tool-select">
+            <button data-subtool="rectangle" title="Rectangle — drag to size">▭ Rectangle</button>
+            <button data-subtool="ellipse" title="Ellipse / circle — drag to size">◯ Ellipse</button>
+            <button data-subtool="line" title="Straight line — drag end to end">╱ Line</button>
+            <button data-subtool="arrow" title="Arrow — drag from tail to head">↗ Arrow</button>
+          </div>
         </div>
       </div>
+
+      <div id="colorBox" class="tool-box tool-box--color" hidden>
+        <div class="tool-box-heading">Color &amp; alpha</div>
+        <div class="color-controls">
+          <input type="color" class="color-custom" id="inkColorPicker" value="#f2f2f2" title="Pick any color">
+          <div class="alpha-wrap">
+            <input type="range" id="inkAlphaSlider" min="0" max="100" value="100" title="Opacity (alpha)">
+            <span class="size-label" id="inkAlphaLabel">100%</span>
+          </div>
+          <span id="inkPreview" class="ink-preview" title="Current color"></span>
+          <button class="btn-sm" id="addPresetBtn" title="Save this color + alpha to your presets">＋ Save</button>
+        </div>
+        <div id="presetRow" class="preset-row"></div>
+      </div>
+
       <div id="penToolOptions" class="tool-group-row" hidden>
-        <button class="swatch active" data-color="#f2f2f2" style="background:#f2f2f2"></button>
-        <button class="swatch" data-color="#e05b5b" style="background:#e05b5b"></button>
-        <button class="swatch" data-color="#5b8cff" style="background:#5b8cff"></button>
-        <button class="swatch" data-color="#5bd68c" style="background:#5bd68c"></button>
-        <button class="swatch" data-color="#f2b84b" style="background:#f2b84b"></button>
-        <input type="color" class="color-custom" id="penColorCustom" value="#ffffff" title="Custom color">
         <div class="size-wrap">
           <input type="range" id="penSizeSlider" min="1" max="30" value="4" title="Pen size">
           <span class="size-label" id="penSizeLabel">4px</span>
         </div>
       </div>
       <div id="highlighterToolOptions" class="tool-group-row" hidden>
-        <button class="swatch active" data-color="#fff59d" style="background:#fff59d"></button>
-        <button class="swatch" data-color="#a5f2a5" style="background:#a5f2a5"></button>
-        <button class="swatch" data-color="#ffb3d1" style="background:#ffb3d1"></button>
-        <button class="swatch" data-color="#a9d4ff" style="background:#a9d4ff"></button>
-        <button class="swatch" data-color="#ffcf8f" style="background:#ffcf8f"></button>
-        <input type="color" class="color-custom" id="hlColorCustom" value="#fff59d" title="Custom color">
         <div class="size-wrap">
           <input type="range" id="hlSizeSlider" min="4" max="60" value="18" title="Highlighter size">
           <span class="size-label" id="hlSizeLabel">18px</span>
+        </div>
+      </div>
+      <div id="shapeToolOptions" class="tool-group-row" hidden>
+        <label class="fill-toggle"><input type="checkbox" id="shapeFillChk"> Fill shape</label>
+        <div class="size-wrap">
+          <input type="range" id="shapeSizeSlider" min="1" max="40" value="4" title="Line thickness">
+          <span class="size-label" id="shapeSizeLabel">4px</span>
         </div>
       </div>
       <div id="eraserToolOptions" class="tool-group-row" hidden>
@@ -454,6 +535,8 @@
         </div>
         <button id="clearCanvasBtn" title="Clear all ink on this note">🗑️ Clear all ink</button>
       </div>
+
+      <div class="pen-hint">One finger draws · two fingers scroll the note</div>
     </div>
   </div>
   <div id="contentWrap">
@@ -740,15 +823,40 @@
 
   let data = loadData();
   let currentNoteId = null;
-  let activeTool = "text"; // text | pen | highlighter | eraser
-  let penColor = "#f2f2f2", penSize = 4;
-  let hlColor = "#fff59d", hlSize = 18;
-  let eraserSize = 20;
+  // text | pen | highlighter | nestHighlighter | eraser | rectangle | ellipse | line | arrow
+  let activeTool = "text";
+  let penSize = 4, hlSize = 18, eraserSize = 20, shapeSize = 4, shapeFill = false;
+
+  // Current ink. Freehand pen and the shape tools share one slot; the
+  // highlighter family keeps its own (so it can stay translucent by default).
+  // Both draw their swatches from one shared, user-editable preset list.
+  let inkColor = { hex:"#f2f2f2", alpha:1 };
+  let hlColorState = { hex:"#fff59d", alpha:0.35 };
+  const SHAPE_TOOLS = ["rectangle","ellipse","line","arrow"];
+  function isShapeTool(t){ return SHAPE_TOOLS.indexOf(t) !== -1; }
+
+  // Custom colour presets (colour + alpha), persisted separately from note data
+  // so they follow the person, not the note. Replaces the old fixed swatches.
+  const PEN_PREFS_KEY = "nestedNotesPenPrefs.v1";
+  const DEFAULT_PRESETS = [
+    { hex:"#f2f2f2", alpha:1 }, { hex:"#e05b5b", alpha:1 }, { hex:"#5b8cff", alpha:1 },
+    { hex:"#5bd68c", alpha:1 }, { hex:"#f2b84b", alpha:1 }, { hex:"#111111", alpha:1 },
+    { hex:"#fff59d", alpha:0.35 }, { hex:"#a9d4ff", alpha:0.35 }, { hex:"#ffb3d1", alpha:0.35 }
+  ];
+  let colorPresets;
+  try{
+    const rawPrefs = localStorage.getItem(PEN_PREFS_KEY);
+    colorPresets = rawPrefs ? (JSON.parse(rawPrefs).presets || DEFAULT_PRESETS.slice())
+                            : DEFAULT_PRESETS.slice();
+  }catch(e){ colorPresets = DEFAULT_PRESETS.slice(); }
+  function savePenPrefs(){
+    try{ localStorage.setItem(PEN_PREFS_KEY, JSON.stringify({ presets: colorPresets })); }catch(e){}
+  }
+
   let drawing = false;
-  let lastX = 0, lastY = 0;
-  let strokePoints = [];       // accumulated points for the current highlighter stroke
-  let preStrokeSnapshot = null; // canvas pixels before the current highlighter stroke began
-  let panPointerId = null, panLastX = 0, panLastY = 0; // manual one-finger scroll
+  let lastX = 0, lastY = 0, startX = 0, startY = 0;
+  let strokePoints = [];       // accumulated points for the current accumulated-path stroke
+  let preStrokeSnapshot = null; // canvas pixels captured before the current stroke began
 
   const el = (id)=>document.getElementById(id);
   const libraryEl = el("library");
@@ -999,8 +1107,10 @@
     dateInput.value = note.date || todayStr();
 
     setContentTypeHTML(note.html || "");
-    loadCanvasForNote(note);
+    // Set the tool first so the (Text vs taller Pen) toolbar is at its final
+    // height before the canvas is sized to the remaining space.
     setTool(note.tool || "text", true);
+    loadCanvasForNote(note);
 
     renderBreadcrumb(id);
   }
@@ -1075,10 +1185,13 @@
   // (or the Pen side of the toggle) always lands on a real pen sub-tool.
   function toolBase(tool){ return tool === "text" ? "text" : "pen"; }
   let lastPenSubtool = "pen";
+  let lastToolBase = null;
 
   function setTool(tool, isInitialLoad){
     activeTool = tool;
     const base = toolBase(tool);
+    const baseChanged = base !== lastToolBase;
+    lastToolBase = base;
     if(base === "pen") lastPenSubtool = tool;
 
     el("modeToggle").classList.toggle("on", base === "pen");
@@ -1095,14 +1208,31 @@
     });
     el("penToolOptions").hidden = tool !== "pen";
     el("highlighterToolOptions").hidden = !(tool === "highlighter" || tool === "nestHighlighter");
+    el("shapeToolOptions").hidden = !isShapeTool(tool);
     el("eraserToolOptions").hidden = tool !== "eraser";
+    const showColorBox = base === "pen" && tool !== "eraser";
+    el("colorBox").hidden = !showColorBox;
+    if(showColorBox) syncColorUI();
 
     const textActive = base === "text";
     contentType.style.pointerEvents = textActive ? "auto" : "none";
     contentDraw.style.pointerEvents = textActive ? "none" : "auto";
     inkNestLayer.classList.toggle("interactive", textActive);
 
-    if(!isInitialLoad) saveCurrentContent();
+    if(!isInitialLoad){
+      saveCurrentContent();
+      // Text and the (taller) Pen toolbar leave #contentWrap different amounts
+      // of vertical room — resize the canvas to match so it never ends up
+      // taller than the visible area and forces scrollbars. Only needed when
+      // the base changes; switching pen sub-tools doesn't move the toolbar.
+      // Run it once now, then again after layout settles: the first pass can
+      // measure while a scrollbar is still transitioning in or out, and the
+      // follow-up corrects the width/height once that has resolved.
+      if(baseChanged){
+        resizeCanvasKeepingInk();
+        setTimeout(resizeCanvasKeepingInk, 60);
+      }
+    }
   }
 
   document.querySelectorAll(".sub-tool-select button").forEach(btn=>{
@@ -1128,7 +1258,7 @@
   });
   el("highlightBtn").addEventListener("mousedown", (e)=>e.preventDefault());
   el("highlightBtn").addEventListener("click", ()=>{
-    document.execCommand("hiliteColor", false, hlColor);
+    document.execCommand("hiliteColor", false, hlColorState.hex);
     contentType.focus();
     saveCurrentContent();
   });
@@ -1323,9 +1453,120 @@
 
   function currentStrokeStyle(){
     if(activeTool === "eraser") return { color:"#000", size:eraserSize, alpha:1, composite:"destination-out" };
-    if(isHighlighterFamily(activeTool)) return { color:hlColor, size:hlSize, alpha:0.35, composite:"source-over" };
-    return { color:penColor, size:penSize, alpha:1, composite:"source-over" };
+    if(isHighlighterFamily(activeTool)) return { color:hlColorState.hex, size:hlSize, alpha:hlColorState.alpha, composite:"source-over" };
+    if(isShapeTool(activeTool)) return { color:inkColor.hex, size:shapeSize, alpha:inkColor.alpha, composite:"source-over" };
+    return { color:inkColor.hex, size:penSize, alpha:inkColor.alpha, composite:"source-over" };
   }
+
+  // Draws one shape from (x0,y0) to (x1,y1) in CSS pixel coords using `style`
+  // (colour / alpha / line width from currentStrokeStyle). Used for both the
+  // live drag preview and the committed shape.
+  function drawShape(tool, x0, y0, x1, y1, style){
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = style.alpha;
+    ctx.strokeStyle = style.color;
+    ctx.fillStyle = style.color;
+    ctx.lineWidth = style.size;
+    ctx.beginPath();
+    if(tool === "rectangle"){
+      ctx.rect(Math.min(x0,x1), Math.min(y0,y1), Math.abs(x1-x0), Math.abs(y1-y0));
+      if(shapeFill) ctx.fill();
+      ctx.stroke();
+    } else if(tool === "ellipse"){
+      ctx.ellipse((x0+x1)/2, (y0+y1)/2, Math.max(Math.abs(x1-x0)/2, 0.1), Math.max(Math.abs(y1-y0)/2, 0.1), 0, 0, Math.PI*2);
+      if(shapeFill) ctx.fill();
+      ctx.stroke();
+    } else if(tool === "line"){
+      ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+      ctx.stroke();
+    } else if(tool === "arrow"){
+      ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+      ctx.stroke();
+      const ang = Math.atan2(y1-y0, x1-x0);
+      const head = Math.max(12, style.size * 3.2);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x1 - head*Math.cos(ang - Math.PI/6), y1 - head*Math.sin(ang - Math.PI/6));
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x1 - head*Math.cos(ang + Math.PI/6), y1 - head*Math.sin(ang + Math.PI/6));
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // --- Shared colour + preset UI (pen / highlighter / shapes) ----------------
+  function activeColorSlot(){ return isHighlighterFamily(activeTool) ? hlColorState : inkColor; }
+
+  function hexToRgba(hex, a){
+    let h = String(hex || "#000000").replace("#","");
+    if(h.length === 3) h = h.split("").map(c=>c+c).join("");
+    const n = parseInt(h, 16) || 0;
+    return "rgba(" + ((n>>16)&255) + ", " + ((n>>8)&255) + ", " + (n&255) + ", " + a + ")";
+  }
+
+  function updateInkPreview(){
+    const s = activeColorSlot();
+    el("inkPreview").style.boxShadow = "inset 0 0 0 40px " + hexToRgba(s.hex, s.alpha);
+  }
+
+  function renderPresets(){
+    const row = el("presetRow");
+    const s = activeColorSlot();
+    row.innerHTML = "";
+    colorPresets.forEach((p, i)=>{
+      const b = document.createElement("button");
+      const on = p.hex.toLowerCase() === s.hex.toLowerCase() && Math.abs(p.alpha - s.alpha) < 0.02;
+      b.className = "preset-swatch" + (on ? " active" : "");
+      b.style.boxShadow = "inset 0 0 0 40px " + hexToRgba(p.hex, p.alpha);
+      b.title = p.hex + " · " + Math.round(p.alpha*100) + "% — tap to use";
+      const x = document.createElement("span");
+      x.className = "preset-x";
+      x.textContent = "×";
+      x.title = "Remove this preset";
+      x.addEventListener("click", (ev)=>{
+        ev.stopPropagation();
+        colorPresets.splice(i, 1);
+        savePenPrefs();
+        renderPresets();
+      });
+      b.appendChild(x);
+      b.addEventListener("click", ()=>{
+        const slot = activeColorSlot();
+        slot.hex = p.hex; slot.alpha = p.alpha;
+        syncColorUI();
+      });
+      row.appendChild(b);
+    });
+  }
+
+  function syncColorUI(){
+    const s = activeColorSlot();
+    el("inkColorPicker").value = /^#[0-9a-fA-F]{6}$/.test(s.hex) ? s.hex : "#ffffff";
+    el("inkAlphaSlider").value = Math.round(s.alpha * 100);
+    el("inkAlphaLabel").textContent = Math.round(s.alpha * 100) + "%";
+    updateInkPreview();
+    renderPresets();
+  }
+
+  el("inkColorPicker").addEventListener("input", (e)=>{
+    activeColorSlot().hex = e.target.value;
+    updateInkPreview();
+    renderPresets();
+  });
+  el("inkAlphaSlider").addEventListener("input", (e)=>{
+    const v = Number(e.target.value);
+    activeColorSlot().alpha = v / 100;
+    el("inkAlphaLabel").textContent = v + "%";
+    updateInkPreview();
+    renderPresets();
+  });
+  el("addPresetBtn").addEventListener("click", ()=>{
+    const s = activeColorSlot();
+    const dup = colorPresets.some(p=>p.hex.toLowerCase() === s.hex.toLowerCase() && Math.abs(p.alpha - s.alpha) < 0.02);
+    if(!dup){ colorPresets.push({ hex:s.hex, alpha:s.alpha }); savePenPrefs(); }
+    renderPresets();
+  });
 
   // Raw (device-pixel) bounding box of the accumulated stroke so far, padded
   // for line width — used to scope the highlighter's per-frame canvas restore
@@ -1345,17 +1586,39 @@
     return { x, y, w: Math.max(1, xMax-x), h: Math.max(1, yMax-y) };
   }
 
-  function beginPan(e){
-    e.preventDefault();
-    panPointerId = e.pointerId;
-    panLastX = e.clientX; panLastY = e.clientY;
-    try{ contentDraw.setPointerCapture(e.pointerId); }catch(err){}
+  // --- Pointer input on the ink canvas -------------------------------------
+  // One finger / pen / mouse draws. Two or more fingers = pan-scroll the note
+  // (native scrolling is suppressed while a pen tool is active, so we do it by
+  // hand). This is what makes drawing usable on a phone with no stylus —
+  // previously a single finger could only pan and there was no way to draw.
+  const activePointers = new Map(); // pointerId -> {x, y} in client coords
+  let panMode = false, panMid = null, strokeSuppressed = false;
+
+  function pointersMidpoint(){
+    let sx = 0, sy = 0, n = 0;
+    activePointers.forEach(p=>{ sx += p.x; sy += p.y; n++; });
+    return n ? { x:sx/n, y:sy/n } : null;
   }
-  function continuePan(e){
-    const wrap = el("contentWrap");
-    wrap.scrollTop += (panLastY - e.clientY);
-    wrap.scrollLeft += (panLastX - e.clientX);
-    panLastX = e.clientX; panLastY = e.clientY;
+
+  function cancelActiveStroke(){
+    if(!drawing) return;
+    drawing = false;
+    if(preStrokeSnapshot) ctx.putImageData(preStrokeSnapshot, 0, 0);
+    strokePoints = [];
+    preStrokeSnapshot = null;
+    ctx.globalAlpha = 1;
+  }
+
+  function startStrokeAt(offX, offY){
+    drawing = true;
+    strokeSuppressed = false;
+    startX = lastX = offX;
+    startY = lastY = offY;
+    // Snapshot before every stroke (not just highlighter/shape) so an
+    // in-progress stroke can be rolled back cleanly if a second finger turns
+    // the gesture into a two-finger pan.
+    preStrokeSnapshot = ctx.getImageData(0, 0, contentDraw.width, contentDraw.height);
+    strokePoints = [{ x:offX, y:offY }];
   }
 
   // Belt-and-suspenders for iOS Safari: touch-action:none plus preventDefault()
@@ -1373,25 +1636,59 @@
 
   contentDraw.addEventListener("pointerdown", (e)=>{
     if(activeTool === "text") return;
-    if(e.pointerType === "touch"){ beginPan(e); return; } // a finger pans; pen or mouse draws
     e.preventDefault();
-    drawing = true;
-    lastX = e.offsetX; lastY = e.offsetY;
-    if(isHighlighterFamily(activeTool)){
-      strokePoints = [{x:lastX, y:lastY}];
-      preStrokeSnapshot = ctx.getImageData(0, 0, contentDraw.width, contentDraw.height);
-    }
     try{ contentDraw.setPointerCapture(e.pointerId); }catch(err){}
+    activePointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+
+    if(activePointers.size >= 2){
+      // Second finger down -> this is a pan, not a drawing. Roll back anything
+      // the first finger started and switch to scroll mode.
+      cancelActiveStroke();
+      panMode = true;
+      strokeSuppressed = true;
+      panMid = pointersMidpoint();
+      return;
+    }
+    if(strokeSuppressed) return; // a finger left over from a two-finger pan
+    startStrokeAt(e.offsetX, e.offsetY);
   });
+
   contentDraw.addEventListener("pointermove", (e)=>{
-    if(panPointerId === e.pointerId){ continuePan(e); return; }
+    if(activePointers.has(e.pointerId)) activePointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+
+    if(panMode){
+      const mid = pointersMidpoint();
+      if(mid && panMid){
+        const wrap = el("contentWrap");
+        wrap.scrollTop  += (panMid.y - mid.y);
+        wrap.scrollLeft += (panMid.x - mid.x);
+      }
+      panMid = mid;
+      return;
+    }
     if(!drawing) return;
+
     const style = currentStrokeStyle();
-    if(isHighlighterFamily(activeTool)){
-      // Redraw the whole accumulated path in one stroke() call each frame so
-      // overlapping segments don't re-blend into darker "beads" — a single
-      // stroke() paints its path as one shape, however much it self-overlaps.
-      strokePoints.push({x:e.offsetX, y:e.offsetY});
+
+    if(isShapeTool(activeTool)){
+      // Restore the pre-drag pixels over the shape's bounding box, then redraw
+      // the shape from its fixed start point to the pointer — a live preview.
+      strokePoints = [{ x:startX, y:startY }, { x:e.offsetX, y:e.offsetY }];
+      const rect = strokeBoundingRectRaw(strokePoints, style.size + 30);
+      ctx.putImageData(preStrokeSnapshot, 0, 0, rect.x, rect.y, rect.w, rect.h);
+      drawShape(activeTool, startX, startY, e.offsetX, e.offsetY, style);
+      lastX = e.offsetX; lastY = e.offsetY;
+      return;
+    }
+
+    // Accumulated-path redraw for the highlighter family, and for any
+    // translucent freehand ink, so overlapping segments don't re-blend into
+    // darker "beads" — a single stroke() paints its whole path as one shape.
+    const accumulate = isHighlighterFamily(activeTool) ||
+      (activeTool !== "eraser" && style.alpha < 0.99);
+
+    if(accumulate){
+      strokePoints.push({ x:e.offsetX, y:e.offsetY });
       const rect = strokeBoundingRectRaw(strokePoints, style.size);
       ctx.putImageData(preStrokeSnapshot, 0, 0, rect.x, rect.y, rect.w, rect.h);
       ctx.globalCompositeOperation = style.composite;
@@ -1413,6 +1710,7 @@
       ctx.stroke();
     }
     lastX = e.offsetX; lastY = e.offsetY;
+    ctx.globalAlpha = 1;
   });
   // Turns a just-finished Nest Highlighter stroke into a nested note: creates
   // the note, records a clickable zone over the stroke's bounding box on the
@@ -1436,11 +1734,14 @@
     openNote(child.id);
   }
 
-  function endStroke(e){
-    if(panPointerId === (e && e.pointerId)){ panPointerId = null; return; }
-    if(!drawing) return;
+  function finishStroke(){
     drawing = false;
     ctx.globalAlpha = 1;
+
+    if(isShapeTool(activeTool) && preStrokeSnapshot && (lastX !== startX || lastY !== startY)){
+      ctx.putImageData(preStrokeSnapshot, 0, 0);
+      drawShape(activeTool, startX, startY, lastX, lastY, currentStrokeStyle());
+    }
     if(activeTool === "nestHighlighter" && strokePoints.length > 1){
       commitInkNest(strokePoints, currentStrokeStyle().size);
     }
@@ -1448,26 +1749,25 @@
     preStrokeSnapshot = null;
     saveCurrentContent();
   }
-  contentDraw.addEventListener("pointerup", endStroke);
-  contentDraw.addEventListener("pointerleave", endStroke);
-  contentDraw.addEventListener("pointercancel", endStroke);
 
-  function wireColorPanel(panelId, customId, setColor){
-    const panel = el(panelId);
-    panel.querySelectorAll(".swatch").forEach(sw=>{
-      sw.addEventListener("click", ()=>{
-        setColor(sw.dataset.color);
-        panel.querySelectorAll(".swatch").forEach(s=>s.classList.remove("active"));
-        sw.classList.add("active");
-      });
-    });
-    el(customId).addEventListener("input", (e)=>{
-      setColor(e.target.value);
-      panel.querySelectorAll(".swatch").forEach(s=>s.classList.remove("active"));
-    });
+  function onPointerEnd(e){
+    activePointers.delete(e.pointerId);
+
+    if(panMode){
+      if(activePointers.size < 2){
+        panMode = false;
+        panMid = null;
+        if(activePointers.size === 0) strokeSuppressed = false;
+      }
+      return;
+    }
+    if(activePointers.size === 0) strokeSuppressed = false;
+    if(!drawing) return;
+    finishStroke();
   }
-  wireColorPanel("penToolOptions", "penColorCustom", (c)=>{ penColor = c; });
-  wireColorPanel("highlighterToolOptions", "hlColorCustom", (c)=>{ hlColor = c; });
+  contentDraw.addEventListener("pointerup", onPointerEnd);
+  contentDraw.addEventListener("pointercancel", onPointerEnd);
+  contentDraw.addEventListener("pointerleave", onPointerEnd);
 
   el("penSizeSlider").addEventListener("input", (e)=>{
     penSize = Number(e.target.value);
@@ -1477,6 +1777,11 @@
     hlSize = Number(e.target.value);
     el("hlSizeLabel").textContent = hlSize + "px";
   });
+  el("shapeSizeSlider").addEventListener("input", (e)=>{
+    shapeSize = Number(e.target.value);
+    el("shapeSizeLabel").textContent = shapeSize + "px";
+  });
+  el("shapeFillChk").addEventListener("change", (e)=>{ shapeFill = e.target.checked; });
   el("eraserSizeSlider").addEventListener("input", (e)=>{
     eraserSize = Number(e.target.value);
     el("eraserSizeLabel").textContent = eraserSize + "px";
